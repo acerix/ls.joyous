@@ -12,6 +12,9 @@ from .widgets import RecurrenceWidget
 
 # ------------------------------------------------------------------------------
 class RecurrenceField(Field):
+    """
+    DB Field for recurrences
+    """
     description = "The rule for recurring events"
 
     def __init__(self, *args, **kwargs):
@@ -60,11 +63,12 @@ class RecurrenceFormField(FormField):
     widget = RecurrenceWidget
 
 # ------------------------------------------------------------------------------
-# From https://gist.github.com/kottenator/9a50e4207cff15c03f8e
-# By Rostyslav Bryzgunov
 class MultipleSelectField(Field):
     """
     Field with multiple *static* choices (not via m2m)
+
+    From https://gist.github.com/kottenator/9a50e4207cff15c03f8e
+    by Rostyslav Bryzgunov
 
     Value is stored in DB as comma-separated values
     Default widget is forms.CheckboxSelectMultiple

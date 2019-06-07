@@ -10,12 +10,20 @@ from .widgets import ExceptionDateInput, Time12hrInput
 
 # ------------------------------------------------------------------------------
 class ExceptionDatePanel(FieldPanel):
+    """
+    Used to select from the dates of the recurrence
+    """
     widget = ExceptionDateInput
     object_template = "joyous/edit_handlers/exception_date_object.html"
 
     def on_instance_bound(self):
         super().on_instance_bound()
-        widget = self.bound_field.field.widget
+        if not self.form:
+            # wait for the form to be set, it will eventually be
+            return
+        if not self.instance.overrides:
+            return
+        widget = self.form[self.field_name].field.widget
         widget.overrides_repeat = self.instance.overrides_repeat
         tz = timezone._get_timezone_name(self.instance.tz)
         if tz != timezone.get_current_timezone_name():
@@ -46,6 +54,9 @@ def _add12hrFormats():
 
 # ------------------------------------------------------------------------------
 class TimePanel(FieldPanel):
+    """
+    Used to select time using either a 12 or 24 hour time widget
+    """
     if getattr(settings, "JOYOUS_TIME_INPUT", "24") in (12, "12"):
         widget = Time12hrInput
         _add12hrFormats()
@@ -64,6 +75,9 @@ except (ValueError, ImportError):
 
 # ------------------------------------------------------------------------------
 class ConcealedPanel(MultiFieldPanel):
+    """
+    A panel that can be hidden
+    """
     def __init__(self, children, heading, classname='', help_text=''):
         super().__init__(children, '', classname, '')
         self._heading   = heading
@@ -77,6 +91,9 @@ class ConcealedPanel(MultiFieldPanel):
 
     def on_instance_bound(self):
         super().on_instance_bound()
+        if not self.request:
+            # wait for the request to be set, it will eventually be
+            return
         if self._show():
             self.heading   = self._heading
             self.help_text = self._help_text

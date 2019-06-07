@@ -3,6 +3,7 @@
 # ------------------------------------------------------------------------------
 import datetime as dt
 from collections import namedtuple
+from contextlib import suppress
 from itertools import chain
 import pytz
 import base64
@@ -10,15 +11,17 @@ import quopri
 from icalendar import Calendar, Event
 from icalendar import vDatetime, vRecur, vDDDTypes, vText
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import HttpResponse
+from django.utils import html
 from django.utils import timezone
 from ls.joyous import __version__
 from ..models import (SimpleEventPage, MultidayEventPage, RecurringEventPage,
-        EventExceptionBase, ExtraInfoPage, CancellationPage, PostponementPage,
+        MultidayRecurringEventPage, EventExceptionBase, ExtraInfoPage,
+        CancellationPage, PostponementPage, RescheduleMultidayEventPage,
         EventBase, CalendarPage)
 from ..utils.recurrence import Recurrence
-from ..utils.telltime import getAwareDatetime
+from ..utils.telltime import getAwareDatetime, getLocalDatetime
 from .vtimezone import create_timezone
 
 # ------------------------------------------------------------------------------
@@ -37,6 +40,7 @@ class CalendarNotInitializedError(RuntimeError):
 
 # ------------------------------------------------------------------------------
 class ICalHandler:
+    """Serve and load iCalendar files"""
     def serve(self, page, request, *args, **kwargs):
         try:
             vcal = VCalendar.fromPage(page, request)
@@ -47,8 +51,8 @@ class ICalHandler:
             'attachment; filename={}.ics'.format(page.slug)
         return response
 
-    def load(self, page, request, upload):
-        vcal = VCalendar(page)
+    def load(self, page, request, upload, **kwargs):
+        vcal = VCalendar(page, **kwargs)
         vcal.load(request, upload.read(), getattr(upload, 'name', ""))
 
 # ------------------------------------------------------------------------------
@@ -56,9 +60,10 @@ class VCalendar(Calendar, VComponentMixin):
     prodVersion = ".".join(__version__.split(".", 2)[:2])
     prodId = "-//linuxsoftware.nz//NONSGML Joyous v{}//EN".format(prodVersion)
 
-    def __init__(self, page=None):
+    def __init__(self, page=None, utc2local=False):
         super().__init__(self)
         self.page = page
+        self.utc2local = utc2local
         self.set('PRODID',  self.prodId)
         self.set('VERSION', "2.0")
 
@@ -74,17 +79,21 @@ class VCalendar(Calendar, VComponentMixin):
     @classmethod
     def _fromCalendarPage(cls, page, request):
         vcal = cls(page)
+        vevents = []
         tzs = {}
         for event in page._getAllEvents(request):
             vevent = cls.factory.makeFromPage(event)
-            vcal.add_component(vevent)
+            vevents.append(vevent)
             for vchild in vevent.vchildren:
-                vcal.add_component(vchild)
+                vevents.append(vchild)
             if event.tz and event.tz is not pytz.utc:
                 tzs.setdefault(event.tz, TimeZoneSpan()).add(vevent)
         for tz, vspan in tzs.items():
             vtz = vspan.createVTimeZone(tz)
+            # Put timezones up top. The RFC doesn't require this, but everyone
+            # else seems to.
             vcal.add_component(vtz)
+        vcal.subcomponents.extend(vevents)
         return vcal
 
     @classmethod
@@ -133,31 +142,51 @@ class VCalendar(Calendar, VComponentMixin):
         self.clear()
         numSuccess = numFail = 0
         for cal in calStream:
-            vmap = {}
-            for props in cal.walk(name="VEVENT"):
+            tz = timezone.get_current_timezone()
+            zone = cal.get('X-WR-TIMEZONE', None)
+            if zone:
                 try:
-                    vevent = self.factory.makeFromProps(props)
-                except CalendarTypeError as e:
-                    numFail += 1
-                    #messages.debug(request, str(e))
-                else:
-                    self.add_component(vevent)
-                    vmap.setdefault(str(vevent['UID']), VMatch()).add(vevent)
-
-            for vmatch in vmap.values():
-                vevent = vmatch.parent
-                if vevent is not None:
-                    try:
-                        event = self.page._getEventFromUid(request, vevent['UID'])
-                    except ObjectDoesNotExist:
-                        numSuccess += self._createEventPage(request, vevent)
-                    else:
-                        if event:
-                            numSuccess += self._updateEventPage(request, vevent, event)
+                    tz = pytz.timezone(zone)
+                except pytz.exceptions.UnknownTimeZoneError:
+                    messages.warning(request, "Unknown time zone {}".format(zone))
+            with timezone.override(tz):
+                result = self._loadEvents(request, cal.walk(name="VEVENT"))
+                numSuccess += result[0]
+                numFail    += result[1]
         if numSuccess:
             messages.success(request, "{} iCal events loaded".format(numSuccess))
         if numFail:
             messages.error(request, "Could not load {} iCal events".format(numFail))
+
+    def _loadEvents(self, request, vevents):
+        numSuccess = numFail = 0
+        vmap = {}
+        for props in vevents:
+            try:
+                match = vmap.setdefault(str(props.get('UID')), VMatch())
+                vevent = self.factory.makeFromProps(props, match.parent)
+                if self.utc2local:
+                    vevent._convertTZ()
+            except CalendarTypeError as e:
+                numFail += 1
+                #messages.debug(request, str(e))
+            else:
+                self.add_component(vevent)
+                match.add(vevent)
+
+        for vmatch in vmap.values():
+            vevent = vmatch.parent
+            if vevent is not None:
+                try:
+                    event = self.page._getEventFromUid(request, vevent['UID'])
+                except PermissionDenied:
+                    # No authority
+                    pass
+                except ObjectDoesNotExist:
+                    numSuccess += self._createEventPage(request, vevent)
+                else:
+                    numSuccess += self._updateEventPage(request, vevent, event)
+        return numSuccess, numFail
 
     def _updateEventPage(self, request, vevent, event):
         numUpdated = 0
@@ -223,8 +252,8 @@ class vDt(vDDDTypes):
         if value is not None:
             if hasattr(value, 'dt'):
                 value = value.dt
-            if isinstance(value, dt.date) and inclusive:
-                value += value.timedelta(days=1)
+            if type(value) == dt.date and inclusive:
+                value += dt.timedelta(days=1)
             super().__init__(value)
 
     def __bool__(self):
@@ -236,26 +265,27 @@ class vDt(vDDDTypes):
         return self.dt == value
 
     def date(self, inclusive=False):
-        if isinstance(self.dt, dt.datetime):
+        if type(self.dt) == dt.datetime:
             return self.dt.date()
-        elif isinstance(self.dt, dt.date):
+        elif type(self.dt) == dt.date:
             if inclusive:
                 return self.dt - dt.timedelta(days=1)
             else:
                 return self.dt
 
     def time(self):
-        if isinstance(self.dt, dt.datetime):
+        if type(self.dt) == dt.datetime:
             return self.dt.time()
 
     def datetime(self, timeDefault=dt.time.min):
-        tz = timezone.get_default_timezone()
-        if isinstance(self.dt, dt.datetime):
+        # TODO: Allow 'floating' times?
+        tz = timezone.get_current_timezone()
+        if type(self.dt) == dt.datetime:
             if timezone.is_aware(self.dt):
                 return self.dt
             else:
                 return timezone.make_aware(self.dt, tz)
-        elif isinstance(self.dt, dt.date):
+        elif type(self.dt) == dt.date:
             return getAwareDatetime(self.dt, None, tz, timeDefault)
 
     def tzinfo(self):
@@ -269,13 +299,17 @@ class vDt(vDDDTypes):
             return tzinfo.tzname(None)
 
     def timezone(self):
-        zone = self.zone()
-        if zone:
+        tzinfo = self.tzinfo()
+        if getattr(tzinfo, 'zone', None):
             try:
-                return pytz.timezone(zone)
+                # Return the timezone unbound from the datetime
+                return pytz.timezone(tzinfo.zone)
             except pytz.exceptions.UnknownTimeZoneError as e:
                 raise CalendarTypeError(str(e)) from e
-        return timezone.get_default_timezone()
+        elif tzinfo is not None:
+            return tzinfo
+        else:
+            return timezone.get_current_timezone()
 
 class vSmart(vText):
     """Text property that automatically decodes encoded strings"""
@@ -306,15 +340,19 @@ class TimeZoneSpan:
 
     def add(self, vevent):
         firstDt = vDt(vevent['DTSTART']).datetime()
-        lastDt  = vDt(vevent.get('DTEND')).datetime(dt.time.max)
-        if not lastDt:
-            lastDt = firstDt + dt.timedelta(days=2) # it's a guess
+        lastDt  = vDt(vevent['DTEND']).datetime(dt.time.max)
 
-        # use until if it is available
         rrule = vevent.get('RRULE', {})
-        untilDt = vDt(rrule.get('UNTIL', [None])[0]).datetime(dt.time.max)
-        if untilDt and untilDt > lastDt:
-            lastDt = untilDt
+        if rrule:
+            # use until if it is available
+            untilDt = vDt(rrule.get('UNTIL', [None])[0]).datetime(dt.time.max)
+            if untilDt:
+                lastDt = untilDt
+            else:
+                # pytz.timezones doesn't know any transition dates after 2038
+                # either -- icalendar/src/icalendar/cal.py:526
+                # using replace to keep the tzinfo
+                lastDt = lastDt.replace(year=2038, month=12, day=31)
 
         if self.firstDt is None or firstDt < self.firstDt:
             self.firstDt = firstDt
@@ -345,19 +383,25 @@ class VMatch:
         if self.parent:
             self.parent.vchildren.append(component)
         else:
+            # I don't know of any iCalendar producer that lists exceptions
+            # before the recurring event, but the RFC doesn't seem to say that
+            # it can't happen either.
             self.orphans.append(component)
 
     def _addParent(self, component):
         if self.parent:
             raise self.DuplicateError("UID {}".format(component['UID']))
         self.parent = component
-        self.parent.vchildren += self.orphans
+        for orphan in self.orphans:
+            # reprocess orphans now their parent has been found
+            vevent = VCalendar.factory.makeFromProps(orphan, self.parent)
+            self.parent.vchildren.append(vevent)
         self.orphans.clear()
 
 # ------------------------------------------------------------------------------
 class VEventFactory:
     """Creates VEvent objects"""
-    def makeFromProps(self, props):
+    def makeFromProps(self, props, parent):
         if 'UID' not in props:
             raise CalendarTypeError("Missing UID")
         if 'DTSTAMP' not in props:
@@ -376,33 +420,43 @@ class VEventFactory:
                 dtend = props['DTEND'] = vDt(dtstart.dt + duration.dt)
         else:
             if not dtend:
-                if isinstance(dtstart.dt, dt.date):
-                    dtend = vDt(dtstart + dt.timedelta(days=1))
-                else:
-                    dtend = dtstart
+                dtend = props['DTEND'] = vDt(dtstart, inclusive=True)
         if type(dtstart.dt) != type(dtend.dt):
             raise CalendarTypeError("DTSTART and DTEND types do not match")
         if dtstart.timezone() != dtend.timezone():
             # Yes it is valid, but Joyous does not support it
             raise CalendarTypeError("DTSTART.timezone != DTEND.timezone")
 
+        numDays = (dtend.date(inclusive=True) - dtstart.date()).days + 1
         rrule = props.get('RRULE')
         if rrule is not None:
             if type(rrule) == list:
                 # TODO support multiple RRULEs?
                 raise CalendarTypeError("Multiple RRULEs")
-            return RecurringVEvent.fromProps(props)
+            if numDays > 1:
+                return MultidayRecurringVEvent.fromProps(props)
+            else:
+                return RecurringVEvent.fromProps(props)
 
         recurrenceId = props.get('RECURRENCE-ID')
-        if recurrenceId:
+        if recurrenceId is not None:
             if dtstart.timezone() != recurrenceId.timezone():
                 # Also valid, but still Joyous does not support it
                 raise CalendarTypeError("DTSTART.timezone != RECURRENCE-ID.timezone")
 
-            if recurrenceId == dtstart:
+            if (parent and recurrenceId == dtstart and
+                parent.numDays == numDays and
+                parent['DTEND'].time() == dtend.time() and
+                (parent['SUMMARY'] != props['SUMMARY'] or
+                 parent['DESCRIPTION'] != props['DESCRIPTION'] != "")):
                 return ExtraInfoVEvent.fromProps(props)
             else:
-                return PostponementVEvent.fromProps(props)
+                if numDays > 1:
+                    return RescheduleMultidayVEvent.fromProps(props)
+                elif parent and parent.numDays > 1:
+                    return RescheduleMultidayVEvent.fromProps(props)
+                else:
+                    return PostponementVEvent.fromProps(props)
 
         if (dtstart.date() != dtend.date(inclusive=True)):
             return MultidayVEvent.fromProps(props)
@@ -415,6 +469,9 @@ class VEventFactory:
 
         elif isinstance(page, MultidayEventPage):
             return MultidayVEvent.fromPage(page)
+
+        elif isinstance(page, MultidayRecurringEventPage):
+            return MultidayRecurringVEvent.fromPage(page)
 
         elif isinstance(page, RecurringEventPage):
             return RecurringVEvent.fromPage(page)
@@ -452,7 +509,7 @@ class VEvent(Event, VComponentMixin):
         return vevent
 
     def toPage(self, page):
-        page.title      = str(self.get('SUMMARY', ""))
+        pass
 
     def makePage(self, **kwargs):
         if not hasattr(self, 'Page'):
@@ -460,6 +517,30 @@ class VEvent(Event, VComponentMixin):
         page = self.Page(**kwargs)
         self.toPage(page)
         return page
+
+    def _convertTZ(self):
+        """Will convert UTC datetimes to the current local timezone"""
+        tz = timezone.get_current_timezone()
+        dtstart = self['DTSTART']
+        dtend   = self['DTEND']
+        if dtstart.zone() == "UTC":
+            dtstart.dt = dtstart.dt.astimezone(tz)
+        if dtend.zone() == "UTC":
+            dtend.dt = dtend.dt.astimezone(tz)
+
+    def _getDesc(self):
+        altDesc = self.get('X-ALT-DESC')
+        if altDesc and altDesc.params.get('FMTTYPE', "").lower() == "text/html":
+            retval = str(altDesc)
+        else:
+            retval = str(self.get('DESCRIPTION', ""))
+        return retval
+
+    def _setDesc(self, desc):
+        plainDesc = html.strip_tags(desc)
+        if desc != plainDesc:
+            self.set('X-ALT-DESC', desc, parameters={'FMTTYPE': "text/html"})
+        self.set('DESCRIPTION', plainDesc)
 
     @property
     def modifiedDt(self):
@@ -476,6 +557,12 @@ class VEvent(Event, VComponentMixin):
                   if type(exDate.dt) == dtType}
         return list(retval)
 
+    @property
+    def numDays(self):
+        dtstart = self['DTSTART']
+        dtend   = self['DTEND']
+        return (dtend.date(inclusive=True) - dtstart.date()).days + 1
+
 # ------------------------------------------------------------------------------
 class SimpleVEvent(VEvent):
     Page = SimpleEventPage
@@ -489,18 +576,19 @@ class SimpleVEvent(VEvent):
         vevent.set('UID',         page.uid)
         vevent.set('DTSTART',     vDatetime(dtstart))
         vevent.set('DTEND',       vDatetime(dtend))
-        vevent.set('DESCRIPTION', page.details)
+        vevent._setDesc(page.details)
         vevent.set('LOCATION',    page.location)
-        # TODO CATEGORY
+        # TODO: Add CATEGORIES page.category
+        # TODO: Add CLASS pages.get_view_restrictions() ? "RESTRICTED" : "PUBLIC"
         return vevent
 
     def toPage(self, page):
         super().toPage(page)
         assert page.uid == self.get('UID')
+        page.title = str(self.get('SUMMARY', "")) or page.uid[:16]
         dtstart  = self['DTSTART']
-        # TODO consider an option to convert UTC timezone events into local time
-        dtend    = vDt(self.get('DTEND'))
-        page.details    = str(self.get('DESCRIPTION', ""))
+        dtend    = self['DTEND']
+        page.details    = self._getDesc()
         page.location   = str(self.get('LOCATION', ""))
         page.date       = dtstart.date()
         page.time_from  = dtstart.time()
@@ -520,17 +608,17 @@ class MultidayVEvent(VEvent):
         vevent.set('UID',         page.uid)
         vevent.set('DTSTART',     vDatetime(dtstart))
         vevent.set('DTEND',       vDatetime(dtend))
-        vevent.set('DESCRIPTION', page.details)
+        vevent._setDesc(page.details)
         vevent.set('LOCATION',    page.location)
         return vevent
 
     def toPage(self, page):
         super().toPage(page)
         assert page.uid == self.get('UID')
+        page.title = str(self.get('SUMMARY', "")) or page.uid[:16]
         dtstart  = self['DTSTART']
-        # TODO consider an option to convert UTC timezone events into local time
-        dtend    = vDt(self.get('DTEND'))
-        page.details    = str(self.get('DESCRIPTION', ""))
+        dtend    = self['DTEND']
+        page.details    = self._getDesc()
         page.location   = str(self.get('LOCATION', ""))
         page.date_from  = dtstart.date()
         page.time_from  = dtstart.time()
@@ -552,12 +640,16 @@ class RecurringVEvent(VEvent):
         vevent.set('UID',         page.uid)
         vevent.set('DTSTART',     vDatetime(dtstart))
         vevent.set('DTEND',       vDatetime(dtend))
-        vevent.set('DESCRIPTION', page.details)
+        vevent._setDesc(page.details)
         vevent.set('LOCATION',    page.location)
         vevent.vchildren, exDates = cls.__getExceptions(page)
         if exDates:
             vevent.set('EXDATE', exDates)
-        vevent.set('RRULE', vRecur.from_ical(page.repeat._getRrule()))
+        until = page.repeat.until
+        if until:
+            until = getAwareDatetime(until, dt.time.max, dtend.tzinfo)
+            until = until.astimezone(pytz.utc)
+        vevent.set('RRULE', vRecur.from_ical(page.repeat._getRrule(until)))
         return vevent
 
     @classmethod
@@ -595,19 +687,26 @@ class RecurringVEvent(VEvent):
     def toPage(self, page):
         super().toPage(page)
         assert page.uid == self.get('UID')
+        page.title = str(self.get('SUMMARY', "")) or page.uid[:16]
         dtstart  = self['DTSTART']
-        dtend    = vDt(self.get('DTEND'))
+        dtend    = self['DTEND']
         rrule = self['RRULE']
         until = vDt(rrule.get('UNTIL', [None])[0])
         if until:
-            rrule['UNTIL'] = [until.date()]
-        page.details    = str(self.get('DESCRIPTION', ""))
+            untilDt = until.datetime().astimezone(dtstart.timezone())
+            rrule['UNTIL'] = [untilDt.date()]
+        page.details    = self._getDesc()
         page.location   = str(self.get('LOCATION', ""))
         page.repeat     = Recurrence(rrule.to_ical().decode(),
                                      dtstart=dtstart.date())
+        page.num_days   = (dtend.date() - dtstart.date()).days + 1
         page.time_from  = dtstart.time()
         page.time_to    = dtend.time()
         page.tz         = dtstart.timezone()
+
+# ------------------------------------------------------------------------------
+class MultidayRecurringVEvent(RecurringVEvent):
+    Page = MultidayRecurringEventPage
 
 # ------------------------------------------------------------------------------
 class ExceptionVEvent(VEvent):
@@ -617,12 +716,13 @@ class ExceptionVEvent(VEvent):
     @classmethod
     def fromPage(cls, page):
         vevent = super().fromPage(page)
+        daysDelta = dt.timedelta(days=page.num_days - 1)
         exceptDt = getAwareDatetime(page.except_date, page.overrides.time_from,
                                     page.tz, dt.time.min)
-        dtstart  = getAwareDatetime(page.except_date, page.time_from, page.tz,
-                                    dt.time.min)
-        dtend    = getAwareDatetime(page.except_date, page.time_to, page.tz,
-                                    dt.time.max)
+        dtstart  = getAwareDatetime(page.except_date, page.time_from,
+                                    page.tz, dt.time.min)
+        dtend    = getAwareDatetime(page.except_date + daysDelta, page.time_to,
+                                    page.tz, dt.time.max)
         vevent.set('UID',           page.overrides.uid)
         vevent.set('RECURRENCE-ID', vDatetime(exceptDt))
         vevent.set('DTSTART',       vDatetime(dtstart))
@@ -643,13 +743,13 @@ class ExtraInfoVEvent(ExceptionVEvent):
     def fromPage(cls, page):
         vevent = super().fromPage(page)
         vevent.set('SUMMARY',       page.extra_title or page.overrides.title)
-        vevent.set('DESCRIPTION',   page.extra_information)
+        vevent._setDesc(page.extra_information)
         return vevent
 
     def toPage(self, page):
         super().toPage(page)
         page.extra_title       = str(self.get('SUMMARY', ""))
-        page.extra_information = str(self.get('DESCRIPTION', ""))
+        page.extra_information = self._getDesc()
 
 # ------------------------------------------------------------------------------
 class CancellationVEvent(ExceptionVEvent):
@@ -674,13 +774,13 @@ class CancellationVEvent(ExceptionVEvent):
     def fromPage(cls, page):
         vevent = super().fromPage(page)
         vevent.set('SUMMARY',       page.cancellation_title)
-        vevent.set('DESCRIPTION',   page.cancellation_details)
+        vevent._setDesc(page.cancellation_details)
         return vevent
 
     def toPage(self, page):
         super().toPage(page)
         page.cancellation_title   = str(self.get('SUMMARY', ""))
-        page.cancellation_details = str(self.get('DESCRIPTION', ""))
+        page.cancellation_details = self._getDesc()
 
 # ------------------------------------------------------------------------------
 class PostponementVEvent(ExceptionVEvent):
@@ -689,32 +789,35 @@ class PostponementVEvent(ExceptionVEvent):
     @classmethod
     def fromPage(cls, page):
         vevent = super().fromPage(page)
-        dtstart = getAwareDatetime(page.date, page.time_from, page.tz, dt.time.min)
-        dtend   = getAwareDatetime(page.date, page.time_to, page.tz, dt.time.max)
-        vevent.set('UID',         page.uid)
+        daysDelta = dt.timedelta(days=page.num_days - 1)
+        dtstart = getAwareDatetime(page.date, page.time_from,
+                                   page.tz, dt.time.min)
+        dtend   = getAwareDatetime(page.date + daysDelta, page.time_to,
+                                   page.tz, dt.time.max)
         vevent.set('SUMMARY',     page.postponement_title)
         vevent.set('DTSTART',     vDatetime(dtstart))
         vevent.set('DTEND',       vDatetime(dtend))
-        vevent.set('DESCRIPTION', page.details)
+        vevent._setDesc(page.details)
         vevent.set('LOCATION',    page.location)
         return vevent
 
     def toPage(self, page):
         super().toPage(page)
-        assert page.uid == self.get('UID')
         dtstart  = self['DTSTART']
-        dtend    = vDt(self.get('DTEND'))
+        dtend    = self['DTEND']
         page.postponement_title = str(self.get('SUMMARY', ""))
-        page.details            = str(self.get('DESCRIPTION', ""))
+        page.details            = self._getDesc()
         page.location           = str(self.get('LOCATION', ""))
         page.date               = dtstart.date()
         page.time_from          = dtstart.time()
         page.time_to            = dtend.time()
 
     def makePage(self, **kwargs):
-        if 'uid' not in kwargs:
-            kwargs['uid'] = self.get('UID')
         return super().makePage(**kwargs)
+
+# ------------------------------------------------------------------------------
+class RescheduleMultidayVEvent(PostponementVEvent):
+    Page = RescheduleMultidayEventPage
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

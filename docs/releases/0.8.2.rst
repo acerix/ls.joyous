@@ -1,0 +1,71 @@
+==========================
+Joyous 0.8.2 release notes
+==========================
+
+.. contents::
+    :local:
+    :depth: 3
+
+
+What's new
+==========
+
+Wagtail 2.5
+~~~~~~~~~~~
+ * Support for Wagtail 2.5 (and Django 2.2).
+
+Postponement Page
+~~~~~~~~~~~~~~~~~
+ * Show cancellation details for postponement page in /from/ sub-view.
+
+Other features
+~~~~~~~~~~~~~~
+ * Include version number in calendar table tag.
+ * Add django admin interface.
+ * Restructured templates to use more inheritance and less inclusion.
+ * Refactor ByDayIterables using EventsByDayList.
+
+Bug fixes
+~~~~~~~~~
+ * |version| macro isn't working with ReadTheDocs, so hardcoded it.
+ * Fix display of Cancellations
+
+Upgrade considerations
+======================
+
+ThisEvent
+~~~~~~~~~
+The namedtuple ThisEvent now has this definition
+
+    .. code-block:: python
+
+        ThisEvent = namedtuple("ThisEvent", "title page url")
+
+The extra field, ``url``, is used to customise the url for an event.  This is
+used to link to the /from/ sub-vew of Postponement Pages.
+
+When unpacking the tuple you will have to include this field too, e.g.
+
+    .. code-block:: python
+
+        {% for title, page, url in evod.days_events %}
+
+
+auth.0011_update_proxy_permissions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+You might see an error running the auth.0011_update_proxy_permissions migration something like...
+
+    .. code-block:: console
+
+         django.db.utils.IntegrityError: duplicate key value violates unique constraint "idx_18141_auth_permission_content_type_id_01ab375a_uniq"
+         DETAIL: Key (content_type_id, codename)=(42, add_specificcalendarpage) already exists
+
+This is a `known issue <https://code.djangoproject.com/ticket/30351>`_.
+There is a fix coming for this in Django, hopefully in 2.2.1.
+Until then the migration can fairly safely be faked when the error occurs.
+
+    .. code-block:: console
+
+        $ ./manage.py migrate --fake auth 0011_update_proxy_permissions 
+        $ ./manage.py migrate
+

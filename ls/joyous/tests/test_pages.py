@@ -6,13 +6,14 @@ import datetime as dt
 import pytz
 from django.contrib.auth.models import User
 from django.contrib.auth.models import Group, Permission
+from django.utils import translation
 from wagtail.tests.utils import WagtailPageTests
 from wagtail.tests.utils.form_data import nested_form_data, rich_text
 from wagtail.core.models import Page
-from ls.joyous.models.events import (SimpleEventPage, MultidayEventPage,
-                                     RecurringEventPage, MultidayRecurringEventPage)
-from ls.joyous.models.events import ExtraInfoPage, CancellationPage, PostponementPage
-from ls.joyous.models.calendar import CalendarPage, SpecificCalendarPage, GeneralCalendarPage
+from ls.joyous.models import (SimpleEventPage, MultidayEventPage,
+        RecurringEventPage, MultidayRecurringEventPage, ExtraInfoPage,
+        CancellationPage, PostponementPage, RescheduleMultidayEventPage,
+        CalendarPage, SpecificCalendarPage, GeneralCalendarPage)
 from ls.joyous.models.groups import get_group_model
 GroupPage = get_group_model()
 from ls.joyous.utils.recurrence import Recurrence, WEEKLY, MO, WE, FR
@@ -82,7 +83,7 @@ class PageClassTests(WagtailPageTests):
 
     def testCanCreatePostponement(self):
         self.assertCanCreateAt(RecurringEventPage, PostponementPage)
-        self.assertCanCreateAt(MultidayRecurringEventPage, PostponementPage)
+        self.assertCanCreateAt(MultidayRecurringEventPage, RescheduleMultidayEventPage)
         self.assertCanNotCreateAt(CalendarPage, PostponementPage)
         self.assertCanNotCreateAt(SpecificCalendarPage, ExtraInfoPage)
         self.assertCanNotCreateAt(GeneralCalendarPage, ExtraInfoPage)
@@ -120,7 +121,7 @@ class PageClassTests(WagtailPageTests):
                                            GroupPage})
         self.assertAllowedSubpageTypes(MultidayRecurringEventPage,
                                        {ExtraInfoPage, CancellationPage,
-                                        PostponementPage})
+                                        RescheduleMultidayEventPage})
 
     def testExtraInfoAllows(self):
         self.assertAllowedParentPageTypes(ExtraInfoPage,
@@ -136,9 +137,109 @@ class PageClassTests(WagtailPageTests):
 
     def testPostponementAllows(self):
         self.assertAllowedParentPageTypes(PostponementPage,
-                                          {RecurringEventPage,
-                                           MultidayRecurringEventPage})
+                                          {RecurringEventPage})
         self.assertAllowedSubpageTypes(PostponementPage, {})
+
+    def testRescheduleMultidayEventAllows(self):
+        self.assertAllowedParentPageTypes(RescheduleMultidayEventPage,
+                                          {MultidayRecurringEventPage})
+        self.assertAllowedSubpageTypes(RescheduleMultidayEventPage, {})
+
+    def testCalendarVerboseName(self):
+        self.assertEqual(CalendarPage.get_verbose_name(),
+                         "Calendar page")
+
+    def testSpecificCalendarVerboseName(self):
+        self.assertEqual(SpecificCalendarPage.get_verbose_name(),
+                         "Specific calendar page")
+
+    def testGeneralCalendarVerboseName(self):
+        self.assertEqual(GeneralCalendarPage.get_verbose_name(),
+                         "General calendar page")
+
+    def testSimpleEventVerboseName(self):
+        self.assertEqual(SimpleEventPage.get_verbose_name(),
+                         "Event page")
+
+    def testMultidayEventVerboseName(self):
+        self.assertEqual(MultidayEventPage.get_verbose_name(),
+                         "Multiday event page")
+
+    def testRecurringEventVerboseName(self):
+        self.assertEqual(RecurringEventPage.get_verbose_name(),
+                         "Recurring event page")
+
+    def testMultidayRecurringEventVerboseName(self):
+        self.assertEqual(MultidayRecurringEventPage.get_verbose_name(),
+                         "Multiday recurring event page")
+
+    def testExtraInfoVerboseName(self):
+        self.assertEqual(ExtraInfoPage.get_verbose_name(),
+                         "Extra event information")
+
+    def testCancellationVerboseName(self):
+        self.assertEqual(CancellationPage.get_verbose_name(),
+                         "Cancellation")
+
+    def testPostponementVerboseName(self):
+        self.assertEqual(PostponementPage.get_verbose_name(),
+                         "Postponement")
+
+    def testRescheduleMultidayEventVerboseName(self):
+        self.assertEqual(RescheduleMultidayEventPage.get_verbose_name(),
+                         "Postponement")
+
+# ------------------------------------------------------------------------------
+class PageClassTestsFrançais(WagtailPageTests):
+    def setUp(self):
+        translation.activate('fr')
+
+    def tearDown(self):
+        translation.deactivate()
+
+    def testCalendarVerboseName(self):
+        self.assertEqual(CalendarPage.get_verbose_name(),
+                         "Page de calendrier")
+
+    def testSpecificCalendarVerboseName(self):
+        self.assertEqual(SpecificCalendarPage.get_verbose_name(),
+                         "Page de calendrier spécifique")
+
+    def testGeneralCalendarVerboseName(self):
+        self.assertEqual(GeneralCalendarPage.get_verbose_name(),
+                         "Page de calendrier générale")
+
+    def testSimpleEventVerboseName(self):
+        self.assertEqual(SimpleEventPage.get_verbose_name(),
+                         "Page de l'événement")
+
+    def testMultidayEventVerboseName(self):
+        self.assertEqual(MultidayEventPage.get_verbose_name(),
+                         "Page de l'événement sur plusieurs jours")
+
+    def testRecurringEventVerboseName(self):
+        self.assertEqual(RecurringEventPage.get_verbose_name(),
+                         "Page d'événement récurrent")
+
+    def testMultidayRecurringEventVerboseName(self):
+        self.assertEqual(MultidayRecurringEventPage.get_verbose_name(),
+                         "Page d'événements récurrents sur plusieurs jours")
+
+    def testExtraInfoVerboseName(self):
+        self.assertEqual(ExtraInfoPage.get_verbose_name(),
+                         "Informations supplémentaires sur l'événement")
+
+    def testCancellationVerboseName(self):
+        self.assertEqual(CancellationPage.get_verbose_name(),
+                         "Annulation")
+
+    def testPostponementVerboseName(self):
+        self.assertEqual(PostponementPage.get_verbose_name(),
+                         "Report")
+
+    def testRescheduleMultidayEventVerboseName(self):
+        self.assertEqual(RescheduleMultidayEventPage.get_verbose_name(),
+                         "Report")
 
 # ------------------------------------------------------------------------------
 class PageInstanceTests(WagtailPageTests):
@@ -267,6 +368,37 @@ class PageInstanceTests(WagtailPageTests):
                                                'postponement_title':   "Test Meeting",
                                                'date':                 dt.date(2009,8,15),
                                                'time_from':            dt.time(13)}))
+
+    def testCanCancelMultidayEvent(self):
+        event2 = MultidayRecurringEventPage(slug      = "test-session",
+                                            title     = "Test Session",
+                                            repeat    = Recurrence(dtstart=dt.date(2009,8,7),
+                                                                   freq=WEEKLY,
+                                                                   byweekday=[MO,WE,FR]),
+                                            num_days  = 2,
+                                            time_from = dt.time(10))
+        self.group.add_child(instance=event2)
+        self.assertCanCreate(event2, CancellationPage,
+                             nested_form_data({'overrides':            self.event.id,
+                                               'except_date':          dt.date(2009,8,14),
+                                               'cancellation_title':   "Session Cancelled" }))
+
+    def testCanRescheduleMultidayEvent(self):
+        event2 = MultidayRecurringEventPage(slug      = "test-session",
+                                            title     = "Test Session",
+                                            repeat    = Recurrence(dtstart=dt.date(2009,8,7),
+                                                                   freq=WEEKLY,
+                                                                   byweekday=[MO,WE,FR]),
+                                            num_days  = 2,
+                                            time_from = dt.time(10))
+        self.group.add_child(instance=event2)
+        self.assertCanCreate(event2, RescheduleMultidayEventPage,
+                             nested_form_data({'overrides':            self.event.id,
+                                               'except_date':          dt.date(2009,8,16),
+                                               'postponement_title':   "Shortened cycle",
+                                               'date':                 dt.date(2009,8,16),
+                                               'num_days':             1,
+                                               'time_from':            dt.time(10)}))
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

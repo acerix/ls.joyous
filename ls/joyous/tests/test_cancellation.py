@@ -30,8 +30,6 @@ class Test(TestCase):
                                         time_to   = dt.time(15,30))
         self.calendar.add_child(instance=self.event)
         self.cancellation = CancellationPage(owner = self.user,
-                                             slug  = "1989-02-01-cancellation",
-                                             title = "Cancellation for Wednesday 1st of February",
                                              overrides = self.event,
                                              except_date = dt.date(1989,2,1),
                                              cancellation_title   = "Meeting Cancelled",
@@ -42,8 +40,6 @@ class Test(TestCase):
 
     def testGetEventsByDay(self):
         hiddenCancellation = CancellationPage(owner = self.user,
-                                              slug  = "1989-02-13-cancellation",
-                                              title = "Cancellation for Monday 13th of February",
                                               overrides = self.event,
                                               except_date = dt.date(1989,2,13))
         self.event.add_child(instance=hiddenCancellation)
@@ -54,13 +50,17 @@ class Test(TestCase):
         self.assertEqual(evod1.date, dt.date(1989,2,1))
         self.assertEqual(len(evod1.days_events), 1)
         self.assertEqual(len(evod1.continuing_events), 0)
-        title, page = evod1.days_events[0]
+        title, page, url = evod1.days_events[0]
         self.assertEqual(title, "Meeting Cancelled")
         self.assertIs(type(page), CancellationPage)
         evod2 = events[12]
         self.assertEqual(evod2.date, dt.date(1989,2,13))
         self.assertEqual(len(evod2.days_events), 0)
         self.assertEqual(len(evod2.continuing_events), 0)
+
+    def testOccursOn(self):
+        self.assertIs(self.event._occursOn(dt.date(1989, 2, 1)), False)
+        self.assertIs(self.event._occursOn(dt.date(1989, 2, 3)), True)
 
     def testUnexplainedCancellation(self):
         self._cancel_1999_02_08()
@@ -87,14 +87,12 @@ class Test(TestCase):
         self.assertEqual(evod.date, dt.date(1999,2,8))
         self.assertEqual(len(evod.days_events), 1)
         self.assertEqual(len(evod.continuing_events), 0)
-        title, page = evod.days_events[0]
+        title, page, url = evod.days_events[0]
         self.assertEqual(title, "Restructure Pending")
         self.assertIs(type(page), CancellationPage)
 
     def _cancel_1999_02_08(self):
         cancellation = CancellationPage(owner = self.user,
-                                        slug  = "1999-02-08-cancellation",
-                                        title = "Cancellation for Monday 8th of February",
                                         overrides = self.event,
                                         except_date = dt.date(1999, 2, 8),
                                         cancellation_title   = "Restructure Pending",
@@ -114,8 +112,6 @@ class Test(TestCase):
         myday = now.date() + dt.timedelta(1)
         friday = myday + dt.timedelta(days=(4-myday.weekday())%7)
         futureCan = CancellationPage(owner = self.user,
-                                     slug  = "fri-cancellation",
-                                     title = "Cancellation for Friday",
                                      overrides = self.event,
                                      except_date = friday,
                                      cancellation_title   = "",
@@ -127,8 +123,35 @@ class Test(TestCase):
     def testWhen(self):
         self.assertEqual(self.cancellation.when, "Wednesday 1st of February 1989 at 1pm to 3:30pm")
 
+    def testWhenEver(self):
+        event = RecurringEventPage(slug      = "XYZ",
+                                   title     = "Xylophone yacht zombies",
+                                   repeat    = Recurrence(dtstart=dt.date(1989,1,1),
+                                                          freq=WEEKLY,
+                                                          byweekday=[FR]),
+                                   time_from = dt.time(19))
+        self.calendar.add_child(instance=event)
+        cancellation = CancellationPage(owner = self.user,
+                                        overrides = event,
+                                        except_date = dt.date(1989,3,10),
+                                        cancellation_title = "Cancelled")
+        event.add_child(instance=cancellation)
+        cancellation.save_revision().publish()
+        self.assertEqual(cancellation.when, "Friday 10th of March 1989 at 7pm")
+
     def testAt(self):
         self.assertEqual(self.cancellation.at.strip(), "1pm")
+
+    def testGroup(self):
+        self.assertIsNone(self.cancellation.group)
+
+    def testOverridesRepeat(self):
+        self.assertEqual(self.cancellation.overrides_repeat, self.event.repeat)
+
+    def testGetContext(self):
+        request = RequestFactory().get("/test")
+        context = self.cancellation.get_context(request)
+        self.assertIn('overrides', context)
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

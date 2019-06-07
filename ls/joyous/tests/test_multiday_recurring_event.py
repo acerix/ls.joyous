@@ -5,15 +5,15 @@ import sys
 import datetime as dt
 import pytz
 import calendar
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 from django.utils import timezone
 from wagtail.core.models import Page, PageViewRestriction
 from ls.joyous.utils.recurrence import Recurrence
-from ls.joyous.utils.recurrence import DAILY, WEEKLY, MONTHLY, YEARLY
+from ls.joyous.utils.recurrence import DAILY, WEEKLY, YEARLY
 from ls.joyous.utils.recurrence import SA, TU, TH, FR
 from ls.joyous.models.calendar import CalendarPage
-from ls.joyous.models.events import MultidayRecurringEventPage
+from ls.joyous.models.events import MultidayRecurringEventPage, ExtraInfoPage
 from .testutils import datetimetz, freeze_timetz
 
 # ------------------------------------------------------------------------------
@@ -67,8 +67,32 @@ class Test(TestCase):
         with freeze_timetz("2014-08-03 17:00:00"):
             self.assertEqual(self.event.status_text, "")
 
+    def testNextOn(self):
+        request = RequestFactory().get("/test")
+        request.user = self.user
+        request.session = {}
+        oldEvent = MultidayRecurringEventPage(
+                               owner = self.user,
+                               slug  = "same-old-thing",
+                               title = "Same Ol'",
+                               repeat = Recurrence(dtstart=dt.date(1971,1,1),
+                                                   until=dt.date(1982,1,1),
+                                                   freq=WEEKLY,
+                                                   byweekday=SA(1)),
+                               num_days  = 2)
+        self.calendar.add_child(instance=oldEvent)
+        oldEvent.save_revision().publish()
+        with freeze_timetz("1974-08-01 17:00:00"):
+            self.assertEqual(oldEvent.next_date, dt.date(1974, 8, 3))
+            self.assertEqual(oldEvent._nextOn(request), "Saturday 3rd of August ")
+        with freeze_timetz("1982-01-01 17:00:00"):
+            self.assertIsNone(oldEvent.next_date)
+            self.assertEqual(oldEvent._nextOn(request), None)
+
     def testWhen(self):
-        self.assertEqual(self.event.when, "The first Friday of August for 3 days at 6pm to 4:30pm")
+        self.assertEqual(self.event.when,
+                         "The first Friday of August for 3 days "
+                         "starting at 6pm finishing at 4:30pm")
 
     def testAt(self):
         self.assertEqual(self.event.at.strip(), "6pm")
@@ -76,6 +100,34 @@ class Test(TestCase):
     @freeze_timetz("2035-04-03 10:00:00")
     def testPrevDate(self):
         self.assertEqual(self.event.prev_date, dt.date(2034, 8, 4))
+
+    @freeze_timetz("2018-04-03 10:00:00")
+    def testFutureExceptions(self):
+        request = RequestFactory().get("/test")
+        request.user = self.user
+        request.session = {}
+        info2018 = ExtraInfoPage(owner = self.user,
+                                 overrides = self.event,
+                                 except_date = dt.date(2018, 8, 3),
+                                 extra_title = "Team Retreat 2018",
+                                 extra_information = "Weekend at Bernie's")
+        self.event.add_child(instance=info2018)
+        exceptions = self.event._futureExceptions(request)
+        self.assertEqual(len(exceptions), 1)
+        info = exceptions[0]
+        self.assertEqual(info.slug, "2018-08-03-extra-info")
+        self.assertEqual(info.extra_title, "Team Retreat 2018")
+
+    @freeze_timetz("2018-08-04 02:00:00")
+    def testPastExcludeExtraInfo(self):
+        info2018 = ExtraInfoPage(owner = self.user,
+                                 overrides = self.event,
+                                 except_date = dt.date(2018, 8, 3),
+                                 extra_title = "Team Retreat 2018",
+                                 extra_information = "Weekend at Bernie's")
+        self.event.add_child(instance=info2018)
+        before = self.event._past_datetime_from
+        self.assertEqual(before, datetimetz(2017, 8, 4, 18))
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

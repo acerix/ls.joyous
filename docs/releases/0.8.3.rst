@@ -1,0 +1,35 @@
+==========================
+Joyous 0.8.3 release notes
+==========================
+
+.. contents::
+    :local:
+    :depth: 3
+
+
+What's new
+==========
+
+Translations
+~~~~~~~~~~~~
+ * Thanks to @Jean-Zombie for the new German translation.
+
+iCal
+~~~~
+ * Add support for X-ALT-DESC
+
+Other features
+~~~~~~~~~~~~~~
+ * Thanks to @Jean-Zombie for suggestions on making Calendar templates easier to customize:
+     * Templates now have more block definitions available to override.
+     * serve functions now return a :class:`TemplateResponse <django:django.template.response.TemplateResponse>`.
+     * also, the ``Calendar._getExtraContext`` function can be overridden to add context.
+ * Raise PermissionDenied from getEventFromUid if we don't have authority.
+
+Bug fixes
+~~~~~~~~~
+ * Use toTheOrdinal where appropriate
+
+Upgrade considerations
+======================
+

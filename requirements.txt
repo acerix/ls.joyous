@@ -2,7 +2,7 @@ Django
 wagtail
 
 django-timezone-field
-num2words
+num2words>=0.5.10
 holidays
 icalendar
 python-dateutil
@@ -11,3 +11,9 @@ django-beautifulsoup-test
 coverage
 coveralls
 freezegun
+
+Sphinx
+sphinx_rtd_theme
+# sphinxcontrib-spelling
+# pyenchant
+# sphinx-autobuild

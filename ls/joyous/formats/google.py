@@ -13,10 +13,10 @@ from ..utils.telltime import getAwareDatetime
 
 # ------------------------------------------------------------------------------
 class GoogleCalendarHandler:
+    """Redirect to a new Google Calendar event"""
     def serve(self, page, request, *args, **kwargs):
         gevent = self._makeFromPage(page)
         if gevent:
-            # TODO 302 or 303???
             return HttpResponseRedirect(gevent.url)
 
     def _makeFromPage(self, page):
@@ -88,7 +88,7 @@ class RecurringGEvent(GEvent):
         gevent.set('dates', vPeriod((dtstart, dtend)).to_ical().decode())
         if page.tz != pytz.utc:
             gevent.set('ctz', page.tz.zone)
-        gevent.set('recur', "RRULE:"+ page.repeat._getRrule())
+        gevent.set('recur', "RRULE:" + page.repeat._getRrule())
         # TODO: try and confirm...
         # Google doesn't accept EXDATE or RDATE here :-(
         return gevent

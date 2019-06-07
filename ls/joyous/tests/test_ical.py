@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
 # Test ical Format
-# see also test_vevents.py and test_icalendar.py
+# see also test_vevents.py, test_vutils.py and test_vcalendar.py
 # ------------------------------------------------------------------------------
 import sys
 import datetime as dt
@@ -14,7 +14,7 @@ from django.utils import timezone
 from wagtail.core.models import Site, Page
 from ls.joyous.models.calendar import CalendarPage
 from ls.joyous.models import (SimpleEventPage, MultidayEventPage,
-        RecurringEventPage, CancellationPage)
+        RecurringEventPage, CancellationPage, MultidayRecurringEventPage)
 from ls.joyous.models import getAllEvents
 from ls.joyous.utils.recurrence import Recurrence
 from ls.joyous.utils.recurrence import WEEKLY, MONTHLY, TU, SA
@@ -104,7 +104,7 @@ END:VCALENDAR""")
         self.assertEqual(event.slug,       "weekly-hack-night")
         self.assertEqual(event.title,      "Weekly Hack Night")
         self.assertEqual(event.details,    "\n".join(["Code for Boston",
-                                                      "Tuesday, July 24 at 7:00 PM", "",
+            "Tuesday, July 24 at 7:00 PM", "",
             "Our weekly work session will be at the Cambridge Innovation Center in Kendall Square"
             ", on the FOURTH FLOOR, in the CAFE. These Hack Nights are our time...", "",
             "https://www.meetup.com/Code-for-Boston/events/249894034/"]))
@@ -327,7 +327,7 @@ END:VCALENDAR
         self.assertEqual(daysOff.slug,       "three-days-off")
         self.assertEqual(daysOff.title,      "Three days off")
         self.assertEqual(daysOff.details,    "")
-        self.assertEqual(daysOff.tz.zone,    "Asia/Tokyo")
+        self.assertEqual(daysOff.tz.zone,    "Pacific/Auckland")
         self.assertEqual(daysOff.date_from,  dt.date(2018,7,13))
         self.assertEqual(daysOff.time_from,  None)
         self.assertEqual(daysOff.date_to,    dt.date(2018,7,15))
@@ -365,6 +365,53 @@ END:VCALENDAR
         self.assertEqual(bigThur.time_from,  dt.time(21))
         self.assertEqual(bigThur.date_to,    dt.date(2018,7,26))
         self.assertEqual(bigThur.time_to,    dt.time(8,30))
+        self.assertEqual(bigThur.when,       "Thursday 26th of July at 9am to 8:30pm")
+
+    @freeze_time("2018-02-01")
+    @timezone.override("Pacific/Auckland")
+    def testUtc2Local(self):
+        stream = BytesIO(rb"""
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Test Data
+X-WR-TIMEZONE:Australia/Sydney
+X-WR-CALDESC:Sample data for Joyous test_ical unittest
+BEGIN:VEVENT
+DTSTART:20180725T210000Z
+DTEND:20180726T083000Z
+DTSTAMP:20180722T060025Z
+UID:1uas8vo82gvhtn8jpr9nlnrmfk@google.com
+CREATED:20180722T035919Z
+DESCRIPTION:Hounit <b>catlike</b> at ethatial to thin a usistiques onshiend
+  alits mily tente duse prommuniss ind sedships itommunte of perpollood.
+LAST-MODIFIED:20180722T035919Z
+LOCATION:
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Big Thursday
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR
+""")
+        request = self._getRequest()
+        self.handler.load(self.calendar, request, stream, utc2local=True)
+        events = getAllEvents(request, home=self.calendar)
+        self.assertEqual(len(events), 1)
+        bigThur = events[0]
+        self.assertEqual(bigThur.owner,      self.user)
+        self.assertEqual(bigThur.slug,       "big-thursday")
+        self.assertEqual(bigThur.title,      "Big Thursday")
+        self.assertEqual(bigThur.details,
+            "Hounit <b>catlike</b> at ethatial to thin a usistiques onshiend "
+            "alits mily tente duse prommuniss ind sedships itommunte of perpollood.")
+        self.assertEqual(bigThur.tz.zone,    "Australia/Sydney")
+        self.assertEqual(bigThur.date_from,  dt.date(2018,7,26))
+        self.assertEqual(bigThur.time_from,  dt.time(7))
+        self.assertEqual(bigThur.date_to,    dt.date(2018,7,26))
+        self.assertEqual(bigThur.time_to,    dt.time(18,30))
         self.assertEqual(bigThur.when,       "Thursday 26th of July at 9am to 8:30pm")
 
     def testOutlook(self):
@@ -498,8 +545,123 @@ END:VCALENDAR
         self.assertEqual(event.time_from,  dt.time(7))
         self.assertEqual(event.time_to,    dt.time(10))
 
+    def testUntilTZ(self):
+        stream = BytesIO(rb"""
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:djm6809@gmail.com
+X-WR-TIMEZONE:Pacific/Auckland
+BEGIN:VTIMEZONE
+TZID:America/New_York
+X-LIC-LOCATION:America/New_York
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+TZNAME:EDT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+TZNAME:EST
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20310101T050000
+DTEND;TZID=America/New_York:20310101T070000
+RRULE:FREQ=DAILY;UNTIL=20310108T045959Z
+DTSTAMP:20190331T203301Z
+UID:566vrur2ldqkvardnrb6tfrbdu@google.com
+CREATED:20190331T200304Z
+DESCRIPTION:New Year resolution
+LAST-MODIFIED:20190331T203219Z
+LOCATION:New York\, NY\, USA
+SEQUENCE:5
+STATUS:CONFIRMED
+SUMMARY:Exercise
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR""")
+        request = self._getRequest()
+        self.handler.load(self.calendar, request, stream)
+        events = self.calendar.get_children()
+        self.assertEqual(len(events), 1)
+        event = events[0].specific
+
+        self.assertIs(type(event),         RecurringEventPage)
+        self.assertEqual(event.slug,       "exercise")
+        self.assertEqual(event.tz.zone,    "America/New_York")
+        self.assertEqual(event.time_from,  dt.time(5))
+        self.assertEqual(event.time_to,    dt.time(7))
+        self.assertEqual(event.repeat.getCount(), 7)
+        self.assertTrue(event._occursOn(dt.date(2031,1,1)))
+        self.assertFalse(event._occursOn(dt.date(2031,1,8)))
+
+    def testMultidayRecurringEvent(self):
+        stream = BytesIO(rb"""
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//linuxsoftware.nz//NONSGML Joyous v0.8//EN
+BEGIN:VEVENT
+SUMMARY:Bought from a Rubber Man
+DTSTART;TZID=Pacific/Auckland:20190402T160000
+DTEND;TZID=Pacific/Auckland:20190404T180000
+DTSTAMP:20190405T054311Z
+UID:e6936872-f15c-4c47-92f2-3559a6610c78
+SEQUENCE:1
+RRULE:FREQ=WEEKLY;BYDAY=TU;WKST=SU
+CREATED:20190405T054255Z
+DESCRIPTION:<p></p>
+LAST-MODIFIED:20190405T054255Z
+LOCATION:
+URL:http://localhost/calendar/bought-rubber-man/
+END:VEVENT
+BEGIN:VTIMEZONE
+TZID:Pacific/Auckland
+BEGIN:DAYLIGHT
+DTSTART;VALUE=DATE-TIME:20180930T030000
+RDATE:20190929T030000,20200927T030000,20210926T030000,20220925T030000,2023
+ 0924T030000,20240929T030000,20250928T030000,20260927T030000,20270926T03000
+ 0,20280924T030000,20290930T030000,20300929T030000,20310928T030000,20320926
+ T030000,20330925T030000,20340924T030000,20350930T030000,20360928T030000,20
+ 370927T030000
+TZNAME:NZDT
+TZOFFSETFROM:+1200
+TZOFFSETTO:+1300
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART;VALUE=DATE-TIME:20190407T020000
+RDATE:20200405T020000,20210404T020000,20220403T020000,20230402T020000,2024
+ 0407T020000,20250406T020000,20260405T020000,20270404T020000,20280402T02000
+ 0,20290401T020000,20300407T020000,20310406T020000,20320404T020000,20330403
+ T020000,20340402T020000,20350401T020000,20360406T020000,20370405T020000
+TZNAME:NZST
+TZOFFSETFROM:+1300
+TZOFFSETTO:+1200
+END:STANDARD
+END:VTIMEZONE
+END:VCALENDAR""")
+        request = self._getRequest()
+        self.handler.load(self.calendar, request, stream)
+        events = self.calendar.get_children()
+        self.assertEqual(len(events), 1)
+        event = events[0].specific
+
+        self.assertIs(type(event),         MultidayRecurringEventPage)
+        self.assertEqual(event.title,      "Bought from a Rubber Man")
+        self.assertEqual(event.tz.zone,    "Pacific/Auckland")
+        self.assertEqual(event.num_days,   3)
+        self.assertEqual(event.time_from,  dt.time(16))
+        self.assertEqual(event.time_to,    dt.time(18))
+
 # ------------------------------------------------------------------------------
-class TestServe(TestCase):
+class TestExport(TestCase):
     def setUp(self):
         Site.objects.update(hostname="joy.test")
         self.home = Page.objects.get(slug='home')
@@ -559,8 +721,7 @@ class TestServe(TestCase):
         self.assertIn(b"URL:http://joy.test/events/mercy-dice-run", response.content)
 
     def testServePage(self):
-        response = self.handler.serve(self.home,
-                                      self._getRequest("/"))
+        response = self.handler.serve(self.home, self._getRequest("/"))
         self.assertIsNone(response)
 
 # ------------------------------------------------------------------------------

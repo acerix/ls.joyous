@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-02-26 12:38+1300\n"
+"POT-Creation-Date: 2019-05-31 15:19+1200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,669 +18,780 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: ls/joyous/models/calendar.py:54
-msgid "upload"
+#: models/calendar.py:60
+msgid "Upload"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:58
+#: models/calendar.py:64
+msgid "Convert UTC to localtime?"
+msgstr ""
+
+#: models/calendar.py:68
 msgid "<b>Warning!</b> this feature is experimental"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:60
+#: models/calendar.py:71
 msgid "Import"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:73
+#: models/calendar.py:84
 msgid "Export"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:97
-#: ls/joyous/templates/joyous/includes/events_view_choices.html:5
+#: models/calendar.py:109 templates/joyous/includes/events_view_choices.html:4
 msgid "List View"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:98
-#: ls/joyous/templates/joyous/includes/events_view_choices.html:10
+#: models/calendar.py:110 templates/joyous/includes/events_view_choices.html:7
 msgid "Weekly View"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:99
-#: ls/joyous/templates/joyous/includes/events_view_choices.html:15
+#: models/calendar.py:111 templates/joyous/includes/events_view_choices.html:10
 msgid "Monthly View"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:105 ls/joyous/models/events.py:607
-msgid "multiday event page"
+#: models/calendar.py:117
+msgid "calendar page"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:106 ls/joyous/models/events.py:608
-msgid "multiday event pages"
+#: models/calendar.py:118
+msgid "calendar pages"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:115
+#: models/calendar.py:128
 msgid "intro"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:116
+#: models/calendar.py:129
+msgid "Introductory text."
+msgstr ""
+
+#: models/calendar.py:130
 msgid "view choices"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:119
+#: models/calendar.py:133
 msgid "default view"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:131
+#: models/calendar.py:145
 msgid "View Options"
 msgstr ""
 
-#: ls/joyous/models/calendar.py:261
+#: models/calendar.py:279
 #, python-brace-format
 msgid "Week {weekNum}"
 msgstr ""
 
-#: ls/joyous/models/events.py:221
+#: models/calendar.py:490
+msgid "specific calendar page"
+msgstr ""
+
+#: models/calendar.py:491
+msgid "specific calendar pages"
+msgstr ""
+
+#: models/calendar.py:537
+msgid "general calendar page"
+msgstr ""
+
+#: models/calendar.py:538
+msgid "general calendar pages"
+msgstr ""
+
+#: models/events.py:332
 msgid "event category"
 msgstr ""
 
-#: ls/joyous/models/events.py:222
+#: models/events.py:333
 msgid "event categories"
 msgstr ""
 
-#: ls/joyous/models/events.py:224
+#: models/events.py:335
 msgid "code"
 msgstr ""
 
-#: ls/joyous/models/events.py:225
+#: models/events.py:336
 msgid "name"
 msgstr ""
 
-#: ls/joyous/models/events.py:343
-msgid "category"
-msgstr ""
-
-#: ls/joyous/models/events.py:349
-msgid "image"
-msgstr ""
-
-#: ls/joyous/models/events.py:352
-msgid "start time"
-msgstr ""
-
-#: ls/joyous/models/events.py:353
-msgid "end time"
-msgstr ""
-
-#: ls/joyous/models/events.py:355
-msgid "time zone"
-msgstr ""
-
-#: ls/joyous/models/events.py:360 ls/joyous/models/groups.py:50
-msgid "group page"
-msgstr ""
-
-#: ls/joyous/models/events.py:362 ls/joyous/models/events.py:1234
-msgid "details"
-msgstr ""
-
-#: ls/joyous/models/events.py:363
-msgid "location"
-msgstr ""
-
-#: ls/joyous/models/events.py:364
-msgid "website"
-msgstr ""
-
-#: ls/joyous/models/events.py:417
-msgid "This event has finished."
-msgstr ""
-
-#: ls/joyous/models/events.py:419
-msgid "This event has started."
-msgstr ""
-
-#: ls/joyous/models/events.py:453 ls/joyous/models/events.py:456
-#: ls/joyous/models/events.py:459 ls/joyous/models/events.py:842
-#: ls/joyous/models/events.py:894 ls/joyous/templatetags/joyous_tags.py:133
-msgid "at "
-msgstr ""
-
-#: ls/joyous/models/events.py:512
-msgid "event page"
-msgstr ""
-
-#: ls/joyous/models/events.py:513
-msgid "event pages"
-msgstr ""
-
-#: ls/joyous/models/events.py:523 ls/joyous/models/events.py:1326
-msgid "date"
-msgstr ""
-
-#: ls/joyous/models/events.py:598
+#: models/events.py:441 models/events.py:760 models/events.py:1665
 msgid "Event cannot end before it starts"
 msgstr ""
 
-#: ls/joyous/models/events.py:618
+#: models/events.py:458
+msgid "category"
+msgstr ""
+
+#: models/events.py:464
+msgid "image"
+msgstr ""
+
+#: models/events.py:467
+msgid "start time"
+msgstr ""
+
+#: models/events.py:468
+msgid "end time"
+msgstr ""
+
+#: models/events.py:472
+msgid "time zone"
+msgstr ""
+
+#: models/events.py:477 models/groups.py:50
+msgid "group page"
+msgstr ""
+
+#: models/events.py:479 models/events.py:1577
+msgid "details"
+msgstr ""
+
+#: models/events.py:480
+msgid "location"
+msgstr ""
+
+#: models/events.py:481
+msgid "website"
+msgstr ""
+
+#: models/events.py:551 models/events.py:1523
+msgid "This event has finished."
+msgstr ""
+
+#: models/events.py:553 models/events.py:1525
+msgid "This event has started."
+msgstr ""
+
+#: models/events.py:600 models/events.py:603 models/events.py:1398
+#, python-brace-format
+msgid "{date} {atTime}"
+msgstr ""
+
+#: models/events.py:601 models/events.py:604 models/events.py:608
+#: models/events.py:1072 models/events.py:1139 models/events.py:1400
+#: templatetags/joyous_tags.py:159
+msgid "at "
+msgstr ""
+
+#: models/events.py:605
+#, python-brace-format
+msgid "{dateTimeFrom} to {dateTo} {atTimeTo}"
+msgstr ""
+
+#: models/events.py:666
+msgid "event page"
+msgstr ""
+
+#: models/events.py:667
+msgid "event pages"
+msgstr ""
+
+#: models/events.py:677 models/events.py:1700
+msgid "date"
+msgstr ""
+
+#: models/events.py:768
+msgid "multiday event page"
+msgstr ""
+
+#: models/events.py:769
+msgid "multiday event pages"
+msgstr ""
+
+#: models/events.py:779
 msgid "start date"
 msgstr ""
 
-#: ls/joyous/models/events.py:619
+#: models/events.py:780
 msgid "end date"
 msgstr ""
 
-#: ls/joyous/models/events.py:720
+#: models/events.py:924
 msgid "recurring event page"
 msgstr ""
 
-#: ls/joyous/models/events.py:721
+#: models/events.py:925
 msgid "recurring event pages"
 msgstr ""
 
-#: ls/joyous/models/events.py:736
+#: models/events.py:940
 msgid "repeat"
 msgstr ""
 
-#: ls/joyous/models/events.py:737
+#: models/events.py:941 models/events.py:1675
 msgid "number of days"
 msgstr ""
 
-#: ls/joyous/models/events.py:827
+#: models/events.py:1050
 msgid "These events have finished."
 msgstr ""
 
-#: ls/joyous/models/events.py:1034
+#: models/events.py:1070
+#, python-brace-format
+msgid "{repeat} {atTime}"
+msgstr ""
+
+#: models/events.py:1075
+#, python-brace-format
+msgid "{repeat} {startFinishTime}"
+msgstr ""
+
+#: models/events.py:1078 models/events.py:1407
+msgid "starting at "
+msgstr ""
+
+#: models/events.py:1079
+msgid "finishing at"
+msgstr ""
+
+#: models/events.py:1288
 msgid "multiday recurring event page"
 msgstr ""
 
-#: ls/joyous/models/events.py:1035
+#: models/events.py:1289
 msgid "multiday recurring event pages"
 msgstr ""
 
-#: ls/joyous/models/events.py:1074
+#: models/events.py:1318
+msgid "That date already has"
+msgstr ""
+
+#: models/events.py:1331
 msgid "overrides"
 msgstr ""
 
-#: ls/joyous/models/events.py:1076
+#: models/events.py:1334
 msgid "The recurring event that we are updating."
 msgstr ""
 
-#: ls/joyous/models/events.py:1077
+#: models/events.py:1335
 msgid "For Date"
 msgstr ""
 
-#: ls/joyous/models/events.py:1078
+#: models/events.py:1336
 msgid "For this date"
 msgstr ""
 
-#: ls/joyous/models/events.py:1094
+#: models/events.py:1359
 #, python-brace-format
 msgid "{exception} for {date}"
 msgstr ""
 
-#: ls/joyous/models/events.py:1136
+#: models/events.py:1404
+#, python-brace-format
+msgid "{date} for {n} days {startTime}"
+msgstr ""
+
+#: models/events.py:1408
+#, python-brace-format
+msgid "{dateAndStartTime} {finishTime}"
+msgstr ""
+
+#: models/events.py:1410
+msgid "finishing at "
+msgstr ""
+
+#: models/events.py:1457
 msgid "Extra Information"
 msgstr ""
 
-#: ls/joyous/models/events.py:1146 ls/joyous/models/events.py:1147
+#: models/events.py:1466 models/events.py:1467
 msgid "extra event information"
 msgstr ""
 
-#: ls/joyous/models/events.py:1157 ls/joyous/models/events.py:1231
-#: ls/joyous/models/events.py:1324
+#: models/events.py:1476
+msgid "Extra-Info"
+msgstr ""
+
+#: models/events.py:1478 models/events.py:1574 models/events.py:1698
 msgid "title"
 msgstr ""
 
-#: ls/joyous/models/events.py:1158
+#: models/events.py:1479
 msgid "A more specific title for this occurence (optional)"
 msgstr ""
 
-#: ls/joyous/models/events.py:1159
+#: models/events.py:1480
 msgid "extra information"
 msgstr ""
 
-#: ls/joyous/models/events.py:1160
+#: models/events.py:1481
 msgid "Information just for this date"
 msgstr ""
 
-#: ls/joyous/models/events.py:1221
+#: models/events.py:1553
+msgid "a cancellation"
+msgstr ""
+
+#: models/events.py:1563
 msgid "cancellation"
 msgstr ""
 
-#: ls/joyous/models/events.py:1222
+#: models/events.py:1564
 msgid "cancellations"
 msgstr ""
 
-#: ls/joyous/models/events.py:1232
-msgid "Show in place of cancelled event (Leave empty to show nothing)"
-msgstr ""
-
-#: ls/joyous/models/events.py:1235
-msgid "Why was the event cancelled?"
-msgstr ""
-
-#: ls/joyous/models/events.py:1248 ls/joyous/models/events.py:1337
+#: models/events.py:1572 models/events.py:1591 models/events.py:1709
 msgid "Cancellation"
 msgstr ""
 
-#: ls/joyous/models/events.py:1258
+#: models/events.py:1575
+msgid "Show in place of cancelled event (Leave empty to show nothing)"
+msgstr ""
+
+#: models/events.py:1578
+msgid "Why was the event cancelled?"
+msgstr ""
+
+#: models/events.py:1607
 msgid "This event has been cancelled."
 msgstr ""
 
-#: ls/joyous/models/events.py:1313
+#: models/events.py:1651
+msgid "a postponement"
+msgstr ""
+
+#: models/events.py:1687 models/events.py:1831
 msgid "postponement"
 msgstr ""
 
-#: ls/joyous/models/events.py:1314
+#: models/events.py:1688 models/events.py:1832
 msgid "postponements"
 msgstr ""
 
-#: ls/joyous/models/events.py:1325
+#: models/events.py:1696
+msgid "Postponement"
+msgstr ""
+
+#: models/events.py:1699
 msgid "The title for the postponed event"
 msgstr ""
 
-#: ls/joyous/models/events.py:1347
+#: models/events.py:1722 models/events.py:1840
 msgid "Postponed to"
 msgstr ""
 
-#: ls/joyous/models/groups.py:51
+#: models/events.py:1765
+#, python-brace-format
+msgid "{what} from {when}"
+msgstr ""
+
+#: models/events.py:1784
+msgid "Postponed"
+msgstr ""
+
+#: models/events.py:1786
+msgid "Rescheduled"
+msgstr ""
+
+#: models/groups.py:51
 msgid "group pages"
 msgstr ""
 
-#: ls/joyous/models/groups.py:63
+#: models/groups.py:63
 msgid "content"
 msgstr ""
 
-#: ls/joyous/models/groups.py:64
+#: models/groups.py:64
 msgid "An area of text for whatever you like"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_list_day.html:17
+#: templates/joyous/calendar_base.html:21
+#: templates/joyous/edit_handlers/export_panel.html:17
+#: templates/joyous/event_base.html:27
+#: templates/joyous/includes/calendar_export.html:3
+msgid "Export iCal"
+msgstr ""
+
+#: templates/joyous/calendar_list_day.html:12
 #, python-format
 msgid "Events on %(day)s"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_list_past.html:15
-#: ls/joyous/templates/joyous/calendar_list_upcoming.html:17
+#: templates/joyous/calendar_list_past.html:5
+#: templates/joyous/calendar_list_upcoming.html:12
 msgid "Upcoming Events"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_list_past.html:17
-#: ls/joyous/templates/joyous/calendar_list_upcoming.html:15
+#: templates/joyous/calendar_list_past.html:12
+#: templates/joyous/calendar_list_upcoming.html:5
 msgid "Past Events"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_month.html:5
+#: templates/joyous/calendar_month.html:5
 msgid "This Month"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_month.html:13
-#: ls/joyous/templates/joyous/includes/minicalendar.html:12
+#: templates/joyous/calendar_month.html:14
+#: templates/joyous/includes/minicalendar.html:12
 msgid "Previous month"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_month.html:17
-#: ls/joyous/templates/joyous/includes/minicalendar.html:13
+#: templates/joyous/calendar_month.html:16
+#: templates/joyous/includes/minicalendar.html:13
 msgid "Next month"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_month.html:22
-#: ls/joyous/templates/joyous/calendar_week.html:22
+#: templates/joyous/calendar_month.html:19
+#: templates/joyous/calendar_week.html:19
 msgid "Previous year"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_month.html:26
-#: ls/joyous/templates/joyous/calendar_week.html:26
+#: templates/joyous/calendar_month.html:21
+#: templates/joyous/calendar_week.html:21
 msgid "Next year"
 msgstr ""
 
-#: ls/joyous/templates/joyous/calendar_week.html:5
-#: ls/joyous/templates/joyous/tags/events_this_week.html:4
-msgid "This Week"
-msgstr ""
-
-#: ls/joyous/templates/joyous/calendar_week.html:13
-msgid "Previous week"
-msgstr ""
-
-#: ls/joyous/templates/joyous/calendar_week.html:17
-msgid "Next week"
-msgstr ""
-
-#: ls/joyous/templates/joyous/edit_handlers/exception_date_object.html:28
-msgid "Time Zone"
-msgstr ""
-
-#: ls/joyous/templates/joyous/edit_handlers/export_panel.html:14
-msgid "Download"
-msgstr ""
-
-#: ls/joyous/templates/joyous/edit_handlers/export_panel.html:17
-#: ls/joyous/templates/joyous/includes/calendar_export.html:3
-#: ls/joyous/templates/joyous/includes/event_export.html:5
-msgid "Export iCal"
-msgstr ""
-
-#: ls/joyous/templates/joyous/includes/calendar_month_day.html:20
-#: ls/joyous/templates/joyous/includes/calendar_week_day.html:20
-#: ls/joyous/templates/joyous/tags/events_this_week.html:20
+#: templates/joyous/calendar_table_base.html:23
+#: templates/joyous/tags/events_this_week.html:19
 msgid "cont."
 msgstr ""
 
-#: ls/joyous/templates/joyous/includes/event_export.html:3
+#: templates/joyous/calendar_week.html:5
+#: templates/joyous/tags/events_this_week.html:3
+msgid "This Week"
+msgstr ""
+
+#: templates/joyous/calendar_week.html:14
+msgid "Previous week"
+msgstr ""
+
+#: templates/joyous/calendar_week.html:16
+msgid "Next week"
+msgstr ""
+
+#: templates/joyous/edit_handlers/exception_date_object.html:28
+msgid "Time Zone"
+msgstr ""
+
+#: templates/joyous/edit_handlers/export_panel.html:14
+msgid "Download"
+msgstr ""
+
+#: templates/joyous/event_base.html:25
 msgid "Google Calendar"
 msgstr ""
 
-#: ls/joyous/templates/joyous/includes/event_overrides.html:4
+#: templates/joyous/exception_base.html:13
 msgid "See also <strong>other occurrences</strong> of this event."
 msgstr ""
 
-#: ls/joyous/templates/joyous/includes/when_where.html:7
-#, python-format
-msgid "Postponed from %(postponed_from)s"
-msgstr ""
-
-#: ls/joyous/templates/joyous/includes/when_where.html:13
+#: templates/joyous/includes/when.html:11
 #, python-format
 msgid "Next on %(event_next_on)s"
 msgstr ""
 
-#: ls/joyous/templates/joyous/tags/events_this_week.html:8
+#: templates/joyous/postponement_page_from.html:8
+#, python-format
+msgid "This event has been %(what)s."
+msgstr ""
+
+#: templates/joyous/postponement_page_from.html:28
+#, python-format
+msgid ""
+"%(what)s to <a class=\"joy-ev-to-when__link\" href=\"%(postponement_url)s\" >"
+"%(postponed_to)s</a>"
+msgstr ""
+
+#: templates/joyous/tags/events_this_week.html:7
 msgid "Today"
 msgstr ""
 
-#: ls/joyous/templates/joyous/tags/future_exceptions_list.html:9
-#: ls/joyous/templates/joyous/tags/future_exceptions_list.html:11
+#: templates/joyous/tags/future_exceptions_list.html:9
+#: templates/joyous/tags/future_exceptions_list.html:11
 msgid "on"
 msgstr ""
 
-#: ls/joyous/templates/joyous/tags/upcoming_events_list.html:3
+#: templates/joyous/tags/group_upcoming_events.html:5
 msgid "Events"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:7
+#: templates/joyous/widgets/recurrence_widget.html:7
 msgid "From Date"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:17
+#: templates/joyous/widgets/recurrence_widget.html:17
 msgid "Frequency"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:28
+#: templates/joyous/widgets/recurrence_widget.html:28
 msgid "Until Date"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:38
+#: templates/joyous/widgets/recurrence_widget.html:38
 msgid "Use Advanced Options"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:43
-#: ls/joyous/widgets.py:61
+#: templates/joyous/widgets/recurrence_widget.html:43 widgets.py:61
 msgid "Every"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:47
+#: templates/joyous/widgets/recurrence_widget.html:47
 msgid "Day(s)"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:48
+#: templates/joyous/widgets/recurrence_widget.html:48
 msgid "Week(s)"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:49
+#: templates/joyous/widgets/recurrence_widget.html:49
 msgid "Month(s)"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:50
+#: templates/joyous/widgets/recurrence_widget.html:50
 msgid "Year(s)"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:57
+#: templates/joyous/widgets/recurrence_widget.html:57
 msgid "On Days"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:67
+#: templates/joyous/widgets/recurrence_widget.html:67
 msgid "On"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:86
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:105
+#: templates/joyous/widgets/recurrence_widget.html:86
+#: templates/joyous/widgets/recurrence_widget.html:105
 msgid "And"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:126
+#: templates/joyous/widgets/recurrence_widget.html:126
 msgid "Of"
 msgstr ""
 
-#: ls/joyous/templates/joyous/widgets/recurrence_widget.html:142
+#: templates/joyous/widgets/recurrence_widget.html:142
 msgid "What are the rules for when this event recurs?"
 msgstr ""
 
-#: ls/joyous/utils/manythings.py:15
+#: utils/manythings.py:15
 msgid "first"
 msgstr "τελευταίο"
 
-#: ls/joyous/utils/manythings.py:16
+#: utils/manythings.py:16
 msgid "second"
 msgstr "προτελευταία"
 
-#: ls/joyous/utils/manythings.py:17
+#: utils/manythings.py:17
 msgid "third"
 msgstr "πρώτη"
 
-#: ls/joyous/utils/manythings.py:18
+#: utils/manythings.py:18
 msgid "fourth"
 msgstr "δεύτερη"
 
-#: ls/joyous/utils/manythings.py:19
+#: utils/manythings.py:19
 msgid "fifth"
 msgstr "τρίτη"
 
-#: ls/joyous/utils/manythings.py:29
+#: utils/manythings.py:29
 msgid "last"
 msgstr "τελευταίος"
 
-#: ls/joyous/utils/manythings.py:31
+#: utils/manythings.py:31
 msgid "penultimate"
 msgstr "προτελευταία"
 
-#: ls/joyous/utils/manythings.py:46
+#: utils/manythings.py:46
 msgid "the last"
 msgstr "η τελευταία"
 
-#: ls/joyous/utils/manythings.py:48
+#: utils/manythings.py:48
 msgid "the penultimate"
 msgstr "την προτελευταίατο"
 
-#: ls/joyous/utils/manythings.py:50
+#: utils/manythings.py:50
 msgid "the first"
 msgstr "το τελευταίο"
 
-#: ls/joyous/utils/manythings.py:52
+#: utils/manythings.py:52
 msgid "the second"
 msgstr "η προτελευταία"
 
-#: ls/joyous/utils/manythings.py:54
+#: utils/manythings.py:54
 msgid "the third"
 msgstr "η πρώτη"
 
-#: ls/joyous/utils/manythings.py:56
+#: utils/manythings.py:56
 msgid "the fourth"
 msgstr "η δεύτερη"
 
-#: ls/joyous/utils/manythings.py:58
+#: utils/manythings.py:58
 msgid "the fifth"
 msgstr "η τρίτη"
 
-#: ls/joyous/utils/manythings.py:61
+#: utils/manythings.py:61
 msgid "the"
 msgstr "η "
 
-#: ls/joyous/utils/manythings.py:76
+#: utils/manythings.py:75
+#, python-brace-format
+msgid "{N} days before"
+msgstr ""
+
+#: utils/manythings.py:77
+msgid "The day before"
+msgstr ""
+
+#: utils/manythings.py:79
+msgid "The day after"
+msgstr ""
+
+#: utils/manythings.py:82
+#, python-brace-format
+msgid "{N} days after"
+msgstr ""
+
+#: utils/manythings.py:91
 msgid "and"
 msgstr ""
 
-#: ls/joyous/utils/names.py:20
+#: utils/names.py:36
 msgid "Mondays"
 msgstr "Δευτέρα"
 
-#: ls/joyous/utils/names.py:21
+#: utils/names.py:37
 msgid "Tuesdays"
 msgstr "Τρίτη"
 
-#: ls/joyous/utils/names.py:22
+#: utils/names.py:38
 msgid "Wednesdays"
 msgstr "Τετάρτες"
 
-#: ls/joyous/utils/names.py:23
+#: utils/names.py:39
 msgid "Thursdays"
 msgstr "Πέμπτη"
 
-#: ls/joyous/utils/names.py:24
+#: utils/names.py:40
 msgid "Fridays"
 msgstr "Παρασκευές"
 
-#: ls/joyous/utils/names.py:25
+#: utils/names.py:41
 msgid "Saturdays"
 msgstr "Σάββατα"
 
-#: ls/joyous/utils/names.py:26
+#: utils/names.py:42
 msgid "Sundays"
 msgstr "Κυριακές"
 
-#: ls/joyous/utils/recurrence.py:44
+#: utils/recurrence.py:48
 #, python-brace-format
 msgid "{ordinal} {weekday}"
 msgstr ""
 
-#: ls/joyous/utils/recurrence.py:52
+#: utils/recurrence.py:56
 #, python-brace-format
-msgid "{localWeekday} before the {ordinal} {weekday}"
+msgid "{localWeekday} before {theOrdinal} {weekday}"
 msgstr ""
 
-#: ls/joyous/utils/recurrence.py:55
+#: utils/recurrence.py:59
 #, python-brace-format
-msgid "{localWeekday} after the {ordinal} {weekday}"
+msgid "{localWeekday} after {theOrdinal} {weekday}"
 msgstr ""
 
-#: ls/joyous/utils/recurrence.py:207
-#, python-brace-format
-msgid "Every {n} days"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:209 ls/joyous/widgets.py:51
-msgid "Daily"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:213
-#, python-brace-format
-msgid "Fortnightly on {days}"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:215
-#, python-brace-format
-msgid "Every {n} weeks on {days}"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:220
-msgid "of the month"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:223 ls/joyous/utils/recurrence.py:262
-#: ls/joyous/utils/recurrence.py:267
-#, python-brace-format
-msgid "of {months}"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:228
-msgid "Everyday"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:233
-#, python-brace-format
-msgid "Every {when}"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:236
-#, python-brace-format
-msgid "The {when}"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:241
-#, python-brace-format
-msgid "Two days before {theOrdinal} day"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:244
-#, python-brace-format
-msgid "The day before {theOrdinal} day"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:247
-#, python-brace-format
-msgid "The day after {theOrdinal} day"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:250
-#, python-brace-format
-msgid "Two days after {theOrdinal} day"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:270
-#, python-brace-format
-msgid "The {ordinal} day"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:274
-#, python-brace-format
-msgid "{when}, every {n} months"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:277
-#, python-brace-format
-msgid "{when}, every {n} years"
-msgstr ""
-
-#: ls/joyous/utils/recurrence.py:280
+#: utils/recurrence.py:248
 #, python-brace-format
 msgid "for {n} days"
 msgstr ""
 
-#: ls/joyous/utils/recurrence.py:284
+#: utils/recurrence.py:252
 #, python-brace-format
 msgid "(until {when})"
 msgstr ""
 
-#: ls/joyous/utils/telltime.py:71
+#: utils/recurrence.py:257
+#, python-brace-format
+msgid "Every {n} days"
+msgstr ""
+
+#: utils/recurrence.py:259 widgets.py:51
+msgid "Daily"
+msgstr ""
+
+#: utils/recurrence.py:265
+#, python-brace-format
+msgid "Fortnightly on {days}"
+msgstr ""
+
+#: utils/recurrence.py:267
+#, python-brace-format
+msgid "Every {n} weeks on {days}"
+msgstr ""
+
+#: utils/recurrence.py:272
+msgid "of the month"
+msgstr ""
+
+#: utils/recurrence.py:275
+#, python-brace-format
+msgid "{when}, every {n} months"
+msgstr ""
+
+#: utils/recurrence.py:281 utils/recurrence.py:329 utils/recurrence.py:336
+#, python-brace-format
+msgid "of {months}"
+msgstr ""
+
+#: utils/recurrence.py:284
+#, python-brace-format
+msgid "{when}, every {n} years"
+msgstr ""
+
+#: utils/recurrence.py:311
+msgid "Everyday"
+msgstr ""
+
+#: utils/recurrence.py:315
+#, python-brace-format
+msgid "Every {when}"
+msgstr ""
+
+#: utils/recurrence.py:317
+#, python-brace-format
+msgid "The {when}"
+msgstr ""
+
+#: utils/recurrence.py:348 utils/recurrence.py:359
+#, python-brace-format
+msgid "{DaysOffset} {theOrdinal} day"
+msgstr ""
+
+#: utils/recurrence.py:352 utils/recurrence.py:364
+#, python-brace-format
+msgid "{TheOrdinal} day"
+msgstr ""
+
+#: utils/telltime.py:99
 #, python-brace-format
 msgid "{fromTime} to {toTime}"
 msgstr ""
 
-#: ls/joyous/utils/telltime.py:83
+#: utils/telltime.py:113
 #, python-brace-format
 msgid "{weekday} {day} of {month} {year}"
 msgstr ""
 
-#: ls/joyous/utils/telltime.py:86
+#: utils/telltime.py:116
 #, python-brace-format
 msgid "{weekday} {day} of {month}"
 msgstr ""
 
-#: ls/joyous/widgets.py:52
+#: widgets.py:52
 msgid "Weekly"
 msgstr ""
 
-#: ls/joyous/widgets.py:53
+#: widgets.py:53
 msgid "Monthly"
 msgstr ""
 
-#: ls/joyous/widgets.py:54
+#: widgets.py:54
 msgid "Yearly"
 msgstr ""
 
-#: ls/joyous/widgets.py:62
+#: widgets.py:62
 msgid "The Same"
 msgstr ""
 
-#: ls/joyous/widgets.py:73
+#: widgets.py:73
 msgid "Day of the month"
 msgstr ""
