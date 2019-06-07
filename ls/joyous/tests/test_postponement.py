@@ -3,6 +3,7 @@
 # ------------------------------------------------------------------------------
 import sys
 import pytz
+from freezegun import freeze_time
 import datetime as dt
 from django.test import RequestFactory, TestCase
 from django.contrib.auth.models import User
@@ -14,8 +15,8 @@ from ls.joyous.models.events import PostponementPage
 from ls.joyous.models.events import CancellationPage
 from ls.joyous.utils.recurrence import Recurrence, WEEKLY, MO, WE, FR
 
-
-class TestPostponement(TestCase):
+# ------------------------------------------------------------------------------
+class Test(TestCase):
     def setUp(self):
         self.home = Page.objects.get(slug='home')
         self.user = User.objects.create_user('j', 'j@joy.test', 's3(r3t')
@@ -96,6 +97,7 @@ class TestPostponement(TestCase):
     def testWhen(self):
         self.assertEqual(self.postponement.when, "Thursday 11th of October 1990 at 1pm to 4:30pm")
 
+    @freeze_time("2017-05-01")
     def testAt(self):
         self.assertEqual(self.postponement.at.strip(), "1pm")
         nextDate = self.event.next_date
@@ -125,8 +127,8 @@ class TestPostponement(TestCase):
         self.assertEqual(parts[4], "at")
         self.assertEqual(parts[5], "8:30am")
 
-
-class TestPostponementTZ(TestCase):
+# ------------------------------------------------------------------------------
+class TestTZ(TestCase):
     def setUp(self):
         self.home = Page.objects.get(slug='home')
         self.user = User.objects.create_user('j', 'j@joy.test', 's3(r3t')
@@ -180,3 +182,7 @@ class TestPostponementTZ(TestCase):
         title, page = evod1.continuing_events[0]
         self.assertEqual(title, "Delayed Meeting")
         self.assertIs(type(page), PostponementPage)
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------

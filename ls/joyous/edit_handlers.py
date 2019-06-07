@@ -46,11 +46,21 @@ def _add12hrFormats():
 
 # ------------------------------------------------------------------------------
 class TimePanel(FieldPanel):
-    if getattr(settings, "JOYOUS_TIME_INPUT", "12") in (12, "12"):
+    if getattr(settings, "JOYOUS_TIME_INPUT", "24") in (12, "12"):
         widget = Time12hrInput
         _add12hrFormats()
     else:
         widget = AdminTimeInput
+
+# ------------------------------------------------------------------------------
+try:
+    # Use wagtailgmaps for location if it is installed
+    # but don't depend upon it
+    settings.INSTALLED_APPS.index('wagtailgmaps')
+    from wagtailgmaps.edit_handlers import MapFieldPanel
+    MapFieldPanel.UsingWagtailGMaps = True
+except (ValueError, ImportError):
+    MapFieldPanel = FieldPanel
 
 # ------------------------------------------------------------------------------
 class ConcealedPanel(MultiFieldPanel):

@@ -15,7 +15,7 @@ def run():
     TestRunner = get_runner(settings)
     test_runner = TestRunner(top_level="ls/joyous",
                              verbosity=verbosity,
-                             keepdb=True)
+                             keepdb=False)
     labels = ["ls.joyous.tests."+arg for arg in sys.argv[1:]
               if not arg.startswith("-")]
     if not labels:
@@ -25,7 +25,7 @@ def run():
 
 def coverage():
     if "--coverage" in sys.argv:
-        cover = Coverage(source=["ls.joyous"])
+        cover = Coverage(source=["ls.joyous"], omit=["*/tests*"])
         cover.start()
         failures = run()
         cover.stop()

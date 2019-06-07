@@ -2,7 +2,6 @@
 # Joyous calendar models
 # ------------------------------------------------------------------------------
 import datetime as dt
-import calendar
 from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib.contenttypes.models import ContentType
@@ -11,6 +10,8 @@ from django.http import Http404
 from django import forms
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext
 from wagtail.admin.forms import WagtailAdminPageForm
 from wagtail.core.models import Page
 from wagtail.core.fields import RichTextField
@@ -18,7 +19,8 @@ from wagtail.admin.edit_handlers import HelpPanel, FieldPanel, MultiFieldPanel
 from wagtail.contrib.routable_page.models import RoutablePageMixin, route
 from wagtail.search import index
 from ..edit_handlers import ConcealedPanel
-from ..utils.weeks import week_info, gregorian_to_week_date
+from ..utils.names import WEEKDAY_NAMES, MONTH_NAMES, MONTH_ABBRS
+from ..utils.weeks import week_info, gregorian_to_week_date, num_weeks_in_year
 from ..utils.weeks import weekday_abbr, weekday_name
 from ..utils.mixins import ProxyPageMixin
 from ..fields import MultipleSelectField
@@ -49,12 +51,13 @@ class CalendarPageForm(WagtailAdminPageForm):
         # TODO support multiple formats?
         cls.importHandler = handler
         uploadWidget = forms.FileInput(attrs={'accept': "text/calendar"})
-        cls.declared_fields['upload'] = forms.FileField(required=False,
+        cls.declared_fields['upload'] = forms.FileField(label=_("upload"),
+                                                        required=False,
                                                         widget=uploadWidget)
         CalendarPage.settings_panels.append(Panel([
-              HelpPanel("<b>Warning!</b> this feature is experimental"),
+              HelpPanel(_("<b>Warning!</b> this feature is experimental")),
               FieldPanel('upload'),
-            ], heading="Import"))
+            ], heading=_("Import")))
 
     @classmethod
     def registerExportHandler(cls, handler):
@@ -67,7 +70,7 @@ class CalendarPageForm(WagtailAdminPageForm):
         CalendarPage.settings_panels.append(Panel([
               # TODO: annex the HelpPanel into ExportPanel?
               HelpPanel(template="joyous/edit_handlers/export_panel.html")
-            ], heading="Export"))
+            ], heading=_("Export")))
 
     def save(self, commit=True):
         page = super().save(commit=False)
@@ -86,30 +89,35 @@ class CalendarPageForm(WagtailAdminPageForm):
 # ------------------------------------------------------------------------------
 DatePictures = {"YYYY":  r"((?:19|20)\d\d)",
                 "MM":    r"(1[012]|0?[1-9])",
-                "Mmm":   r"({})".format("|".join(calendar.month_abbr[1:])),
+                #"Mon":   r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)",
+                "Mon":   r"({})".format("|".join(m.lower() for m in MONTH_ABBRS)),
                 "DD":    r"(3[01]|[12]\d|0?[1-9])",
                 "WW":    r"(5[0-3]|[1-4]\d|0?[1-9])"}
 
-EVENTS_VIEW_CHOICES = [('L', "List View"),
-                       ('W', "Weekly View"),
-                       ('M', "Monthly View")]
+EVENTS_VIEW_CHOICES = [('L', _("List View")),
+                       ('W', _("Weekly View")),
+                       ('M', _("Monthly View"))]
 
 # ------------------------------------------------------------------------------
 class CalendarPage(RoutablePageMixin, Page):
-    """
-    CalendarPage displays all the events which are in the same site
-    """
+    """CalendarPage displays all the events which are in the same site"""
+    class Meta:
+        verbose_name = _("multiday event page")
+        verbose_name_plural = _("multiday event pages")
+
     EventsPerPage = 25
     subpage_types = ['joyous.SimpleEventPage',
                      'joyous.MultidayEventPage',
-                     'joyous.RecurringEventPage']
+                     'joyous.RecurringEventPage',
+                     'joyous.MultidayRecurringEventPage']
     base_form_class = CalendarPageForm
 
-    intro = RichTextField(blank=True)
-
-    view_choices = MultipleSelectField(blank=True, default=["L","W","M"],
+    intro = RichTextField(_("intro"), blank=True)
+    view_choices = MultipleSelectField(_("view choices"), blank=True,
+                                       default=["L","W","M"],
                                        choices=EVENTS_VIEW_CHOICES)
-    default_view = models.CharField(default="M", max_length=15,
+    default_view = models.CharField(_("default view"),
+                                    default="M", max_length=15,
                                     choices=EVENTS_VIEW_CHOICES)
 
     search_fields = Page.search_fields[:]
@@ -120,7 +128,7 @@ class CalendarPage(RoutablePageMixin, Page):
         MultiFieldPanel([
             FieldPanel('view_choices'),
             FieldPanel('default_view')],
-            heading="View Options"),
+            heading=_("View Options")),
         ]
 
     @route(r"^$")
@@ -134,9 +142,9 @@ class CalendarPage(RoutablePageMixin, Page):
         else:
             return self.serveMonth(request, year)
 
-    @route(r"^{YYYY}/{Mmm}/$(?i)".format(**DatePictures))
+    @route(r"^{YYYY}/{Mon}/$(?i)".format(**DatePictures))
     def routeByMonthAbbr(self, request, year, monthAbbr):
-        month = calendar.month_abbr[:].index(monthAbbr.title())
+        month = (DatePictures['Mon'].index(monthAbbr.lower()) // 4) + 1
         return self.serveMonth(request, year, month)
 
     @route(r"^month/$")
@@ -188,7 +196,7 @@ class CalendarPage(RoutablePageMixin, Page):
                        'weeklyUrl':    weeklyUrl,
                        'listUrl':      listUrl,
                        'thisMonthUrl': myUrl(today.year, today.month),
-                       'monthName':    calendar.month_name[month],
+                       'monthName':    MONTH_NAMES[month],
                        'weekdayAbbr':  weekday_abbr,
                        'events':       self._getEventsByWeek(request, year, month)})
 
@@ -197,24 +205,32 @@ class CalendarPage(RoutablePageMixin, Page):
     def serveWeek(self, request, year=None, week=None):
         myurl = self.get_url(request)
         def myUrl(urlYear, urlWeek):
-            if 1900 <= urlYear <= 2099:
-                return myurl + self.reverse_subpage('serveWeek',
-                                                    args=[urlYear, urlWeek])
+            if (urlYear < 1900 or
+                urlYear > 2099 or
+                urlYear == 2099 and urlWeek == 53):
+                return None
+            if urlWeek == 53 and num_weeks_in_year(urlYear) == 52:
+                urlWeek = 52
+            return myurl + self.reverse_subpage('serveWeek',
+                                                args=[urlYear, urlWeek])
         today = timezone.localdate()
-        thisYear, thisWeekNum, _ = gregorian_to_week_date(today)
+        thisYear, thisWeekNum, dow = gregorian_to_week_date(today)
         if year is None: year = thisYear
         if week is None: week = thisWeekNum
         year = int(year)
         week = int(week)
 
         firstDay, lastDay, prevYearNumWeeks, yearNumWeeks = week_info(year, week)
-        eventsInWeek = self._getEventsByDay(request, firstDay, lastDay)
-        monthlyUrl = myurl + self.reverse_subpage('serveMonth',
-                                                  args=[firstDay.year, firstDay.month])
-        listUrl = myurl + self.reverse_subpage('serveUpcoming')
         if week == 53 and yearNumWeeks == 52:
-            year += 1
-            week = 1
+            raise Http404("Only 52 weeks in {}".format(year))
+
+        eventsInWeek = self._getEventsByDay(request, firstDay, lastDay)
+        if firstDay.year >= 1900:
+            monthlyUrl = myurl + self.reverse_subpage('serveMonth',
+                                                      args=[firstDay.year, firstDay.month])
+        else:
+            monthlyUrl = myurl + self.reverse_subpage('serveMonth', args=[1900, 1])
+        listUrl = myurl + self.reverse_subpage('serveUpcoming')
 
         prevWeek = week - 1
         prevWeekYear = year
@@ -242,7 +258,7 @@ class CalendarPage(RoutablePageMixin, Page):
                        'thisWeekUrl':  myUrl(thisYear, thisWeekNum),
                        'monthlyUrl':   monthlyUrl,
                        'listUrl':      listUrl,
-                       'weekName':     "Week {}".format(week),
+                       'weekName':     _("Week {weekNum}").format(weekNum=week),
                        'weekdayAbbr':  weekday_abbr,
                        'events':       [eventsInWeek]})
 
@@ -281,8 +297,8 @@ class CalendarPage(RoutablePageMixin, Page):
                        'monthlyUrl':   monthlyUrl,
                        'weeklyUrl':    weeklyUrl,
                        'listUrl':      listUrl,
-                       'monthName':    calendar.month_name[month],
-                       'weekdayName':  calendar.day_name[day.weekday()],
+                       'monthName':    MONTH_NAMES[month],
+                       'weekdayName':  WEEKDAY_NAMES[day.weekday()],
                        'events':       eventsOnDay})
 
     @route(r"^upcoming/$")
@@ -359,7 +375,7 @@ class CalendarPage(RoutablePageMixin, Page):
                        'year':         year,
                        'month':        month,
                        'calendarUrl':  self.get_url(request),
-                       'monthName':    calendar.month_name[month],
+                       'monthName':    MONTH_NAMES[month],
                        'weekdayInfo':  zip(weekday_abbr, weekday_name),
                        'events':       self._getEventsByWeek(request, year, month)})
 

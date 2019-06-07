@@ -11,6 +11,8 @@
 import datetime as dt
 import calendar
 from django.utils.formats import get_format
+from .names import (MONDAY_TO_SUNDAY, MON_TO_SUN,
+                    SUNDAY_TO_SATURDAY, SUN_TO_SAT)
 
 # ------------------------------------------------------------------------------
 # Start weeks on Monday
@@ -49,6 +51,7 @@ def _gregorian_to_iso(date_value):
     return date_value.isocalendar()
 
 def _iso_week_of_month(date_value):
+    "0-starting index which ISO-week in the month this date is"
     weekday_of_first = date_value.replace(day=1).weekday()
     return (date_value.day + weekday_of_first - 1) // 7
 
@@ -91,27 +94,30 @@ def _gregorian_to_ssweek(date_value):
     return (date_value.year, weekNum, dayOfWeek)
 
 def _ssweek_of_month(date_value):
+    "0-starting index which Sundaystarting-week in the month this date is"
     weekday_of_first = (date_value.replace(day=1).weekday() + 1) % 7
     return (date_value.day + weekday_of_first - 1) // 7
 
 # ------------------------------------------------------------------------------
-
 if get_format("FIRST_DAY_OF_WEEK") == 1:
     calendar.setfirstweekday(calendar.MONDAY)
     week_info = _iso_info
     num_weeks_in_year = _iso_num_weeks
     gregorian_to_week_date = _gregorian_to_iso
     week_of_month = _iso_week_of_month
-    weekday_abbr = calendar.day_abbr[:]
-    weekday_name = calendar.day_name[:]
+    weekday_abbr = MON_TO_SUN
+    weekday_name = MONDAY_TO_SUNDAY
 else:
     calendar.setfirstweekday(calendar.SUNDAY)
     week_info = _ssweek_info
     num_weeks_in_year = _ssweek_num_weeks
     gregorian_to_week_date = _gregorian_to_ssweek
     week_of_month = _ssweek_of_month
-    weekday_abbr = calendar.day_abbr[-1:] + calendar.day_abbr[:-1]
-    weekday_name = calendar.day_name[-1:] + calendar.day_name[:-1]
+    weekday_abbr = SUN_TO_SAT
+    weekday_name = SUNDAY_TO_SATURDAY
+
+# FIXME encapsulate these functions in classes
+# for ease of testing if nothing else
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

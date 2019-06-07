@@ -15,7 +15,8 @@ from ls.joyous.models.groups import get_group_model
 from .testutils import datetimetz
 GroupPage = get_group_model()
 
-class TestSimpleEvent(TestCase):
+# ------------------------------------------------------------------------------
+class Test(TestCase):
     def setUp(self):
         self.home = Page.objects.get(slug='home')
         self.user = User.objects.create_user('i', 'i@joy.test', 's3cr3t')
@@ -131,7 +132,8 @@ class TestSimpleEvent(TestCase):
         group.add_child(instance=race)
         self.assertEqual(race.group, group)
 
-class TestSimpleEventTZ(TestCase):
+# ------------------------------------------------------------------------------
+class TestTZ(TestCase):
     def setUp(self):
         self.home = Page.objects.get(slug='home')
         self.user = User.objects.create_user('i', 'i@joy.test', 's3cr3t')
@@ -202,7 +204,8 @@ class TestSimpleEventTZ(TestCase):
         self.assertEqual(event.at, "")
         self.assertEqual(event.when, "Sunday 31st of July 2016")
 
-class TestSimpleEventQuerySet(TestCase):
+# ------------------------------------------------------------------------------
+class TestQuerySet(TestCase):
     def setUp(self):
         self.home = Page.objects.get(slug='home')
         self.user = User.objects.create_user('i', 'i@joy.test', 's3cr3t')
@@ -327,3 +330,7 @@ class TestSimpleEventQuerySet(TestCase):
         request.user.groups.set([secretariat, assembly])
         self.assertEqual(list(SimpleEventPage.events.auth(request)),
                          [self.event, meeting])
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------

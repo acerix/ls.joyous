@@ -10,7 +10,6 @@ TEMPLATES_DIR = os.path.join(PROJECT_DIR, 'tests', 'templates')
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 
-TIME_ZONE = 'Asia/Tokyo'
 
 DATABASES = {
     'default': {
@@ -21,13 +20,11 @@ DATABASES = {
 
 SECRET_KEY = 'not needed'
 
-ROOT_URLCONF = 'wagtail.tests.urls'
+ROOT_URLCONF = 'ls.joyous.tests.urls'
 
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 )
-
-USE_TZ = True
 
 TEMPLATES = [
     {
@@ -40,8 +37,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                #'wagtail.tests.context_processors.do_not_use_static_url',
-                #'wagtail.contrib.settings.context_processors.settings',
+                'wagtail.tests.context_processors.do_not_use_static_url',
             ],
             'debug': True,  # required in order to catch template errors
         },
@@ -56,7 +52,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #'django.middleware.security.SecurityMiddleware',
 
     'wagtail.core.middleware.SiteMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
@@ -89,6 +84,12 @@ INSTALLED_APPS = [
 ]
 
 WSGI_APPLICATION = 'demo.wsgi.application'
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'Asia/Tokyo'
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
 
 WAGTAIL_SITE_NAME = "Testing"
 BASE_URL = 'http://joy.test'

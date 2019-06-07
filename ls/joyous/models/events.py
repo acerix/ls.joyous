@@ -11,11 +11,14 @@ from operator import attrgetter
 from uuid import uuid4
 from django.conf import settings
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.query import ModelIterable
-from django.utils.html import format_html
 from django.utils import timezone
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext
 from timezone_field import TimeZoneField
 from wagtail.core.query import PageQuerySet
 from wagtail.core.models import Page, PageManager, PageViewRestriction
@@ -27,22 +30,16 @@ from wagtail.images import get_image_model_string
 from wagtail.search import index
 from wagtail.admin.forms import WagtailAdminPageForm
 from ..holidays.parser import parseHolidays
+from ..utils.mixins import ProxyPageMixin
 from ..utils.telltime import (getAwareDatetime, getLocalDatetime,
         getLocalDateAndTime, getLocalDate, getLocalTime, todayUtc)
 from ..utils.telltime import timeFrom, timeTo
 from ..utils.telltime import timeFormat, dateFormat
 from ..utils.weeks import week_of_month
 from ..fields import RecurrenceField
-from ..edit_handlers import ExceptionDatePanel, TimePanel
+from ..edit_handlers import ExceptionDatePanel, TimePanel, MapFieldPanel
 from .groups import get_group_model_string, get_group_model
 
-try:
-    # Use wagtailgmaps for location if it is installed
-    # but don't depend upon it
-    settings.INSTALLED_APPS.index('wagtailgmaps')
-    from wagtailgmaps.edit_handlers import MapFieldPanel
-except (ValueError, ImportError):
-    MapFieldPanel = FieldPanel
 
 # ------------------------------------------------------------------------------
 # API get functions
@@ -212,7 +209,8 @@ class EventsOnDay(namedtuple("EODBase", "date days_events continuing_events")):
     def holiday(self):
         return self.holidays.get(self.date)
 
-_1day = dt.timedelta(days=1)
+_1day  = dt.timedelta(days=1)
+_2days = dt.timedelta(days=2)
 
 # ------------------------------------------------------------------------------
 # Event models
@@ -220,11 +218,11 @@ _1day = dt.timedelta(days=1)
 class EventCategory(models.Model):
     class Meta:
         ordering = ["name"]
-        verbose_name = "Event Category"
-        verbose_name_plural = "Event Categories"
+        verbose_name = _("event category")
+        verbose_name_plural = _("event categories")
 
-    code = models.CharField(max_length=4, unique=True)
-    name = models.CharField(max_length=80)
+    code = models.CharField(_("code"), max_length=4, unique=True)
+    name = models.CharField(_("name"), max_length=80)
 
     def __str__(self):
         return self.name
@@ -342,26 +340,28 @@ class EventBase(models.Model):
     uid = models.CharField(max_length=255, db_index=True, editable=False, default=uuid4)
     category = models.ForeignKey(EventCategory,
                                  related_name="+",
-                                 verbose_name="Category",
+                                 verbose_name=_("category"),
                                  on_delete=models.SET_NULL,
                                  blank=True, null=True)
     image = models.ForeignKey(get_image_model_string(),
                               null=True, blank=True,
-                              on_delete=models.SET_NULL,
-                              related_name='+')
+                              related_name='+',
+                              verbose_name=_("image"),
+                              on_delete=models.SET_NULL)
 
-    time_from = models.TimeField("Start time", null=True, blank=True)
-    time_to = models.TimeField("End time", null=True, blank=True)
+    time_from = models.TimeField(_("start time"), null=True, blank=True)
+    time_to = models.TimeField(_("end time"), null=True, blank=True)
     # No you can't set different timezones for time_from and time_to
-    tz = TimeZoneField(verbose_name="Time zone",
+    tz = TimeZoneField(verbose_name=_("time zone"),
                        default=_get_default_timezone)
 
     group_page  = models.ForeignKey(get_group_model_string(),
                                     null=True, blank=True,
+                                    verbose_name=_("group page"),
                                     on_delete=models.SET_NULL)
-    details  = RichTextField(blank=True)
-    location = models.CharField(max_length=255, blank=True)
-    website = models.URLField(blank=True)
+    details  = RichTextField(_("details"), blank=True)
+    location = models.CharField(_("location"), max_length=255, blank=True)
+    website = models.URLField(_("website"), blank=True)
 
     search_fields = Page.search_fields + [
         index.SearchField('location'),
@@ -405,15 +405,18 @@ class EventBase(models.Model):
 
     @property
     def status(self):
+        """
+        The current status of the event (started, finished or pending)
+        """
         raise NotImplementedError()
 
     @property
     def status_text(self):
         status = self.status
         if status == "finished":
-            return "This event has finished."
+            return _("This event has finished.")
         elif status == "started":
-            return "This event has started."
+            return _("This event has started.")
         else:
             return ""
 
@@ -425,8 +428,12 @@ class EventBase(models.Model):
                               if getattr(panel, "field_name", None) not in remove]
 
     def isAuthorized(self, request):
-        return all(restriction.accept_request(request)
-                   for restriction in self.get_view_restrictions())
+        restrictions = self.get_view_restrictions()
+        if restrictions and request is None:
+            return False
+        else:
+            return all(restriction.accept_request(request)
+                       for restriction in restrictions)
 
     def _getLocalWhen(self, date_from, date_to=None):
         dateFrom, timeFrom = getLocalDateAndTime(date_from, self.time_from,
@@ -443,13 +450,13 @@ class EventBase(models.Model):
 
         if dateFrom == dateTo:
             retval = "{} {}".format(dateFormat(dateFrom),
-                                    timeFormat(timeFrom, timeTo, "at "))
+                                    timeFormat(timeFrom, timeTo, gettext("at ")))
         else:
             retval = "{} {}".format(dateFormat(dateFrom),
-                                    timeFormat(timeFrom, prefix="at "))
+                                    timeFormat(timeFrom, prefix=gettext("at ")))
             retval = "{} to {} {}".format(retval.strip(),
                                           dateFormat(dateTo),
-                                          timeFormat(timeTo, prefix="at "))
+                                          timeFormat(timeTo, prefix=gettext("at ")))
         return retval.strip()
 
     def _getFromTime(self, atDate=None):
@@ -493,17 +500,17 @@ class SimpleEventQuerySet(EventQuerySet):
                     if pageFromDate != pageToDate:
                         if 0 <= dayNum+1 <= toOrd - fromOrd:
                             evods[dayNum+1].continuing_events.append(thisEvent)
-                for evod in evods:
-                    yield evod
+                yield from evods
         qs = self._clone()
         qs._iterable_class = ByDayIterable
-        return qs.filter(date__range=(fromDate - _1day, toDate + _1day))
+        return qs.filter(date__range=(fromDate - _2days, toDate + _2days))
 
 class SimpleEventPage(Page, EventBase):
     events = EventManager.from_queryset(SimpleEventQuerySet)()
 
     class Meta:
-        verbose_name = "Event Page"
+        verbose_name = _("event page")
+        verbose_name_plural = _("event pages")
         default_manager_name = "objects"
 
     parent_page_types = ["joyous.CalendarPage",
@@ -513,7 +520,7 @@ class SimpleEventPage(Page, EventBase):
     subpage_types = []
     base_form_class = EventPageForm
 
-    date    = models.DateField("Date", default=dt.date.today)
+    date    = models.DateField(_("date"), default=dt.date.today)
 
     content_panels = Page.content_panels + [
         FieldPanel('category'),
@@ -557,8 +564,8 @@ class MultidayEventQuerySet(EventQuerySet):
         return qs.filter(date_from__lte = todayUtc() + _1day)
 
     def byDay(self, fromDate, toDate):
-        fromOrd =  fromDate.toordinal()
-        toOrd   =  toDate.toordinal()
+        fromOrd = fromDate.toordinal()
+        toOrd   = toDate.toordinal()
         class ByDayIterable(ModelIterable):
             def __iter__(self):
                 evods = []
@@ -577,19 +584,18 @@ class MultidayEventQuerySet(EventQuerySet):
                         elif pageFromDate < day <= pageToDate:
                             continuing_events.append(ThisEvent(page.title, page))
                     evods.append(EventsOnDay(day, days_events, continuing_events))
-                for evod in evods:
-                    yield evod
+                yield from evods
         qs = self._clone()
         qs._iterable_class = ByDayIterable
-        return qs.filter(date_to__gte   = fromDate - _1day)   \
-                 .filter(date_from__lte = toDate + _1day)
+        return qs.filter(date_to__gte   = fromDate - _2days)   \
+                 .filter(date_from__lte = toDate + _2days)
 
 class MultidayEventPageForm(EventPageForm):
     def _checkStartBeforeEnd(self, cleaned_data):
         startDate = cleaned_data.get('date_from', dt.date.min)
         endDate   = cleaned_data.get('date_to', dt.date.max)
         if startDate > endDate:
-            self.add_error('date_to', "Event cannot end before it starts")
+            self.add_error('date_to', _("Event cannot end before it starts"))
         elif startDate == endDate:
             super()._checkStartBeforeEnd(cleaned_data)
 
@@ -598,7 +604,8 @@ class MultidayEventPage(Page, EventBase):
     events = EventManager.from_queryset(MultidayEventQuerySet)()
 
     class Meta:
-        verbose_name = "Multiday Event Page"
+        verbose_name = _("multiday event page")
+        verbose_name_plural = _("multiday event pages")
         default_manager_name = "objects"
 
     parent_page_types = ["joyous.CalendarPage",
@@ -608,8 +615,8 @@ class MultidayEventPage(Page, EventBase):
     subpage_types = []
     base_form_class = MultidayEventPageForm
 
-    date_from = models.DateField("Start date", default=dt.date.today)
-    date_to = models.DateField("End date", default=dt.date.today)
+    date_from = models.DateField(_("start date"), default=dt.date.today)
+    date_to = models.DateField(_("end date"), default=dt.date.today)
 
     content_panels = Page.content_panels + [
         FieldPanel('category'),
@@ -655,8 +662,8 @@ class RecurringEventQuerySet(EventQuerySet):
                          for ord in range(fromOrd, toOrd+1)]
                 for page in super().__iter__():
                     exceptions = self.__getExceptionsFor(page)
-                    for occurence in page.repeat.between(fromDate - _1day,
-                                                         toDate + _1day, True):
+                    for occurence in page.repeat.between(fromDate - _2days,
+                                                         toDate + _2days, True):
                         thisEvent = None
                         exception = exceptions.get(occurence)
                         if exception:
@@ -667,20 +674,25 @@ class RecurringEventQuerySet(EventQuerySet):
                         if thisEvent:
                             pageFromDate = getLocalDate(occurence,
                                                         page.time_from, page.tz)
-                            pageToDate  = getLocalDate(occurence,
-                                                       page.time_to, page.tz)
-                            dayNum = pageFromDate.toordinal() - fromOrd
+                            pageFromOrd = pageFromDate.toordinal()
+                            daysDelta = dt.timedelta(days=page.num_days - 1)
+                            pageToDate = getLocalDate(occurence + daysDelta,
+                                                      page.time_to, page.tz)
+                            pageToOrd = pageToDate.toordinal()
+
+                            dayNum = pageFromOrd - fromOrd
                             if 0 <= dayNum <= toOrd - fromOrd:
                                 evods[dayNum].days_events.append(thisEvent)
-                            if pageFromDate != pageToDate:
-                                if 0 <= dayNum+1 <= toOrd - fromOrd:
-                                    cont = evods[dayNum+1].continuing_events
+
+                            for pageOrd in range(pageFromOrd + 1, pageToOrd + 1):
+                                dayNum = pageOrd - fromOrd
+                                if 1 <= dayNum <= toOrd - fromOrd:
+                                    cont = evods[dayNum].continuing_events
                                     cont.append(thisEvent)
-                for evod in evods:
-                    yield evod
+                yield from evods
 
             def __getExceptionsFor(self, page):
-                dateRange = (fromDate - _1day, toDate + _1day)
+                dateRange = (fromDate - _2days, toDate + _2days)
                 exceptions = {}
                 for extraInfo in ExtraInfoPage.events(request).child_of(page)\
                                      .filter(except_date__range=dateRange):
@@ -705,7 +717,8 @@ class RecurringEventPage(Page, EventBase):
     events = EventManager.from_queryset(RecurringEventQuerySet)()
 
     class Meta:
-        verbose_name = "Recurring Event Page"
+        verbose_name = _("recurring event page")
+        verbose_name_plural = _("recurring event pages")
         default_manager_name = "objects"
 
     parent_page_types = ["joyous.CalendarPage",
@@ -720,20 +733,25 @@ class RecurringEventPage(Page, EventBase):
     # FIXME So that Fred can't cancel Barney's event
     # owner_subpages_only = True
 
-    repeat  = RecurrenceField()
+    repeat   = RecurrenceField(_("repeat"))
+    num_days = models.IntegerField(_("number of days"), default=1,
+                                   validators=[MinValueValidator(1),
+                                               MaxValueValidator(99)])
 
     # TODO 
     # exclude_holidays = models.BooleanField(default=False)
     # exclude_holidays.help_text = "Cancel any occurence of this event on a public holiday"
 
-    content_panels = Page.content_panels + [
+    content_panels0 = Page.content_panels + [
         FieldPanel('category'),
         ImageChooserPanel('image'),
-        FieldPanel('repeat'),
+        FieldPanel('repeat')]
+    content_panels1 = [
         TimePanel('time_from'),
         TimePanel('time_to'),
         FieldPanel('tz'),
         ] + EventBase.content_panels1
+    content_panels = content_panels0 + content_panels1
 
     @property
     def next_date(self):
@@ -778,18 +796,22 @@ class RecurringEventPage(Page, EventBase):
     @property
     def status(self):
         myNow = timezone.localtime(timezone=self.tz)
+        daysDelta = dt.timedelta(days=self.num_days - 1)
         if self.repeat.until:
-            untilDt = getAwareDatetime(self.repeat.until, self.time_to, self.tz)
+            untilDt = getAwareDatetime(self.repeat.until + daysDelta,
+                                       self.time_to, self.tz)
             if untilDt < myNow:
                 return "finished"
         todayStart = getAwareDatetime(myNow.date(), dt.time.min, self.tz)
-        eventStart, event = self.__afterOrPostponedTo(todayStart)
+        eventStart, event = self.__afterOrPostponedTo(todayStart - daysDelta)
         if eventStart is None:
             # the last occurences must have been cancelled
             return "finished"
-        eventFinish = getAwareDatetime(eventStart.date(), event.time_to, self.tz)
-        if (event.time_from is not None and
-            eventStart < myNow < eventFinish):
+        eventFinish = getAwareDatetime(eventStart.date() + daysDelta,
+                                       event.time_to, self.tz)
+        if event.time_from is None:
+            eventStart += _1day
+        if eventStart < myNow < eventFinish:
             # if there are two occurences on the same day then we may miss
             # that one of them has started
             return "started"
@@ -802,7 +824,7 @@ class RecurringEventPage(Page, EventBase):
     def status_text(self):
         status = self.status
         if status == "finished":
-            return "These events have finished."
+            return _("These events have finished.")
         else:
             return super().status_text
 
@@ -811,14 +833,13 @@ class RecurringEventPage(Page, EventBase):
         offset   = 0
         timeFrom = None
         timeTo   = None
-        myNow    = timezone.localtime(timezone=self.tz)
-        fromDt   = self.__after(myNow) or self.__before(myNow)
+        fromDt   = self._getFromDt()
         if fromDt is not None:
             offset = timezone.localtime(fromDt).toordinal() - fromDt.toordinal()
             timeFrom = getLocalTime(fromDt.date(), self.time_from, self.tz)
             timeTo = getLocalTime(fromDt.date(), self.time_to, self.tz)
-        retval = "{} {}".format(self.repeat._getWhen(offset),
-                                timeFormat(timeFrom, timeTo, "at "))
+        retval = "{} {}".format(self.repeat._getWhen(offset, self.num_days),
+                                timeFormat(timeFrom, timeTo, gettext("at ")))
         return retval.strip()
 
     @property
@@ -827,34 +848,17 @@ class RecurringEventPage(Page, EventBase):
 
     def _getFromTime(self, atDate=None):
         # What was the time of this event?  Due to timezones that depends what
-        # day we are talking about.  if no day is given, assume today.
+        # day we are talking about.  If no day is given, assume today.
         if atDate is None:
             atDate = timezone.localdate(timezone=self.tz)
         return getLocalTime(atDate, self.time_from, self.tz)
 
+    def _getFromDt(self):
+        # Get the datetime of the next event after or before now
+        myNow = timezone.localtime(timezone=self.tz)
+        return self.__after(myNow) or self.__before(myNow)
+
     def _futureExceptions(self, request):
-        """
-        Returns all future extra info, cancellations and postponements created
-        for this recurring event
-        """
-        retval = []
-        # We know all future exception dates are in the parent time zone
-        myToday = timezone.localdate(timezone=self.tz)
-
-        for extraInfo in ExtraInfoPage.events(request).child_of(self)         \
-                                      .filter(except_date__gte=myToday):
-            retval.append(extraInfo)
-        for cancellation in CancellationPage.events(request).child_of(self)   \
-                                            .filter(except_date__gte=myToday):
-            postponement = getattr(cancellation, "postponementpage", None)
-            if postponement:
-                retval.append(postponement)
-            else:
-                retval.append(cancellation)
-        retval.sort(key=attrgetter('except_date'))
-        return retval
-
-    def _getException(self, request):
         """
         Returns all future extra info, cancellations and postponements created
         for this recurring event
@@ -887,7 +891,7 @@ class RecurringEventPage(Page, EventBase):
         if nextDt is not None:
             timeFrom = nextDt.time() if event.time_from is not None else None
             retval = "{} {}".format(dateFormat(nextDt.date()),
-                                    timeFormat(timeFrom, prefix="at "))
+                                    timeFormat(timeFrom, prefix=gettext("at ")))
             if event is not self and event.isAuthorized(request):
                 retval = format_html('<a class="inline-link" href="{}">{}</a>',
                                      event.url, retval)
@@ -895,7 +899,8 @@ class RecurringEventPage(Page, EventBase):
 
     def _occursOn(self, myDate):
         """
-        Returns true iff this event occurs on this date (in event's own timezone)
+        Returns true iff an occurence of this event starts on this date
+        (given in the event's own timezone).
         (Does not include postponements, but does exclude cancellations)
         """
         # TODO analyse which is faster (rrule or db) and test that first
@@ -914,7 +919,9 @@ class RecurringEventPage(Page, EventBase):
     def _getMyFirstDatetimeTo(self):
         myFirstDt = self._getMyFirstDatetimeFrom()
         if myFirstDt is not None:
-            return getAwareDatetime(myFirstDt.date(), self.time_to,
+            daysDelta = dt.timedelta(days=self.num_days - 1)
+            return getAwareDatetime(myFirstDt.date() + daysDelta,
+                                    self.time_to,
                                     self.tz, dt.time.max)
 
     def __localAfterOrPostponedTo(self, fromDt, timeDefault=dt.time.min):
@@ -974,7 +981,7 @@ class RecurringEventPage(Page, EventBase):
     def __after(self, fromDt, excludeCancellations=True, excludeExtraInfo=False):
         fromDate = fromDt.date()
         if self.time_from and self.time_from < fromDt.time():
-            fromDate += dt.timedelta(days=1)
+            fromDate += _1day
         exceptions = set()
         if excludeCancellations:
             for cancelled in CancellationPage.events.child_of(self)          \
@@ -999,7 +1006,7 @@ class RecurringEventPage(Page, EventBase):
     def __before(self, fromDt, excludeCancellations=True, excludeExtraInfo=False):
         fromDate = fromDt.date()
         if self.time_from and self.time_from > fromDt.time():
-            fromDate -= dt.timedelta(days=1)
+            fromDate -= _1day
         exceptions = set()
         if excludeCancellations:
             for cancelled in CancellationPage.events.child_of(self)          \
@@ -1020,8 +1027,16 @@ class RecurringEventPage(Page, EventBase):
         if last is not None:
             return getAwareDatetime(last, self.time_from, self.tz, dt.time.min)
 
-# TODO
-# class MultidayReccuringEventPage(RecurringEventPage):
+# ------------------------------------------------------------------------------
+class MultidayRecurringEventPage(ProxyPageMixin, RecurringEventPage):
+    """a proxy of RecurringEventPage that exposes the hidden num_days field"""
+    class Meta:
+        verbose_name = _("multiday recurring event page")
+        verbose_name_plural = _("multiday recurring event pages")
+
+    content_panels = RecurringEventPage.content_panels0 + [
+        FieldPanel('num_days'),
+        ] + RecurringEventPage.content_panels1
 
 # ------------------------------------------------------------------------------
 class EventExceptionQuerySet(EventQuerySet):
@@ -1055,11 +1070,12 @@ class EventExceptionBase(models.Model):
     overrides = models.ForeignKey('joyous.RecurringEventPage',
                                   null=True, blank=False,
                                   # can't set to CASCADE, so go with SET_NULL
-                                  on_delete=models.SET_NULL,
-                                  related_name='+')
-    overrides.help_text = "The recurring event that we are updating."
-    except_date = models.DateField('For Date')
-    except_date.help_text = "For this date"
+                                  related_name='+',
+                                  verbose_name=_("overrides"),
+                                  on_delete=models.SET_NULL)
+    overrides.help_text = _("The recurring event that we are updating.")
+    except_date = models.DateField(_("For Date"))
+    except_date.help_text = _("For this date")
 
     # Original properties
     time_from   = property(attrgetter("overrides.time_from"))
@@ -1073,10 +1089,10 @@ class EventExceptionBase(models.Model):
 
     @property
     def localTitle(self):
-        # TODO localize for language too?
         name = self.title.partition(" for ")[0]
         exceptDate = getLocalDate(self.except_date, self.time_from, self.tz)
-        title = "{} for {}".format(name, dateFormat(exceptDate))
+        title = _("{exception} for {date}").format(exception=_(name),
+                                                   date=dateFormat(exceptDate))
         return title
 
     @property
@@ -1097,8 +1113,12 @@ class EventExceptionBase(models.Model):
         super().full_clean(*args, **kwargs)
 
     def isAuthorized(self, request):
-        return all(restriction.accept_request(request)
-                   for restriction in self.get_view_restrictions())
+        restrictions = self.get_view_restrictions()
+        if restrictions and request is None:
+            return False
+        else:
+            return all(restriction.accept_request(request)
+                       for restriction in restrictions)
 
 
 # ------------------------------------------------------------------------------
@@ -1113,7 +1133,7 @@ class ExtraInfoQuerySet(EventExceptionQuerySet):
         return qs
 
 class ExtraInfoPageForm(EventExceptionPageForm):
-    name        = "Extra Information"
+    name        = _("Extra Information")
     description = name.lower()
 
     def clean(self):
@@ -1123,19 +1143,21 @@ class ExtraInfoPageForm(EventExceptionPageForm):
 
 class ExtraInfoPage(Page, EventExceptionBase):
     class Meta:
-        verbose_name = "Extra Event Information"
+        verbose_name = _("extra event information")
+        verbose_name_plural = _("extra event information")
         default_manager_name = "objects"
 
     events = EventManager.from_queryset(ExtraInfoQuerySet)()
-    parent_page_types = ["joyous.RecurringEventPage"]
+    parent_page_types = ["joyous.RecurringEventPage",
+                         "joyous.MultidayRecurringEventPage"]
     subpage_types = []
     base_form_class = ExtraInfoPageForm
     slugName    = "extra-info"
 
-    extra_title = models.CharField('Title', max_length=255, blank=True)
-    extra_title.help_text = "A more specific title for this occurence (optional)"
-    extra_information = RichTextField(blank=False)
-    extra_information.help_text = "Information just for this date"
+    extra_title = models.CharField(_("title"), max_length=255, blank=True)
+    extra_title.help_text = _("A more specific title for this occurence (optional)")
+    extra_information = RichTextField(_("extra information"), blank=False)
+    extra_information.help_text = _("Information just for this date")
 
     search_fields = Page.search_fields + [
         index.SearchField('extra_title'),
@@ -1196,19 +1218,21 @@ class CancellationPageForm(EventExceptionPageForm):
 
 class CancellationPage(Page, EventExceptionBase):
     class Meta:
-        verbose_name = "Cancellation"
+        verbose_name = _("cancellation")
+        verbose_name_plural = _("cancellations")
         default_manager_name = "objects"
 
-    parent_page_types = ["joyous.RecurringEventPage"]
+    parent_page_types = ["joyous.RecurringEventPage",
+                         "joyous.MultidayRecurringEventPage"]
     subpage_types = []
     base_form_class = CancellationPageForm
     slugName = "cancellation"
 
-    cancellation_title = models.CharField('Title', max_length=255, blank=True)
-    cancellation_title.help_text = "Show in place of cancelled event "\
-                                   "(Leave empty to show nothing)"
-    cancellation_details = RichTextField('Details', blank=True)
-    cancellation_details.help_text = "Why was the event cancelled?"
+    cancellation_title = models.CharField(_("title"), max_length=255, blank=True)
+    cancellation_title.help_text = _("Show in place of cancelled event "
+                                     "(Leave empty to show nothing)")
+    cancellation_details = RichTextField(_("details"), blank=True)
+    cancellation_details.help_text = _("Why was the event cancelled?")
 
     search_fields = Page.search_fields + [
         index.SearchField('cancellation_title'),
@@ -1221,7 +1245,7 @@ class CancellationPage(Page, EventExceptionBase):
         MultiFieldPanel([
             FieldPanel('cancellation_title', classname="full title"),
             FieldPanel('cancellation_details', classname="full")],
-            heading="Cancellation"),
+            heading=_("Cancellation")),
         ]
     promote_panels = []
 
@@ -1231,7 +1255,7 @@ class CancellationPage(Page, EventExceptionBase):
 
     @property
     def status_text(self):
-        return "This event has been cancelled."
+        return _("This event has been cancelled.")
 
 # ------------------------------------------------------------------------------
 class PostponementQuerySet(EventQuerySet):
@@ -1271,8 +1295,7 @@ class PostponementQuerySet(EventQuerySet):
                     if pageFromDate != pageToDate:
                         if 0 <= dayNum+1 <= toOrd - fromOrd:
                             evods[dayNum+1].continuing_events.append(thisEvent)
-                for evod in evods:
-                    yield evod
+                yield from evods
         qs = self._clone()
         qs._iterable_class = ByDayIterable
         return qs.filter(date__range=(fromDate - _1day, toDate + _1day))
@@ -1287,18 +1310,20 @@ class PostponementPageForm(EventExceptionPageForm):
 
 class PostponementPage(EventBase, CancellationPage):
     class Meta:
-        verbose_name = "Postponement"
+        verbose_name = _("postponement")
+        verbose_name_plural = _("postponements")
         default_manager_name = "objects"
 
     events = EventManager.from_queryset(PostponementQuerySet)()
-    parent_page_types = ["joyous.RecurringEventPage"]
+    parent_page_types = ["joyous.RecurringEventPage",
+                         "joyous.MultidayRecurringEventPage"]
     subpage_types = []
     base_form_class = PostponementPageForm
     slugName = "postponement"
 
-    postponement_title = models.CharField('Title', max_length=255)
-    postponement_title.help_text = "The title for the postponed event"
-    date    = models.DateField("Date")
+    postponement_title = models.CharField(_("title"), max_length=255)
+    postponement_title.help_text = _("The title for the postponed event")
+    date = models.DateField(_("date"))
 
     search_fields = Page.search_fields + [
         index.SearchField('postponement_title'),
@@ -1309,7 +1334,7 @@ class PostponementPage(EventBase, CancellationPage):
         MultiFieldPanel([
             FieldPanel('cancellation_title', classname="full title"),
             FieldPanel('cancellation_details', classname="full")],
-            heading="Cancellation"),
+            heading=_("Cancellation")),
         MultiFieldPanel([
             FieldPanel('postponement_title', classname="full title"),
             ImageChooserPanel('image'),
@@ -1319,7 +1344,7 @@ class PostponementPage(EventBase, CancellationPage):
             FieldPanel('details', classname="full"),
             MapFieldPanel('location'),
             FieldPanel('website')],
-            heading="Postponed to"),
+            heading=_("Postponed to")),
     ]
     promote_panels = []
 

@@ -131,24 +131,23 @@ class RecurrenceWidget
 
     _freqChanged: (freq) ->
         visible = [false, false, false]
-        units = ""
-        switch parseInt(freq, 10)
+        frequency = parseInt(freq, 10)
+        switch frequency
             when 3
                 visible = [false, false, false]
-                units = "Day(s)"
             when 2
                 visible = [true,  false, false]
-                units = "Week(s)"
             when 1
                 visible = [false, true,  false]
-                units = "Month(s)"
             when 0
                 visible = [false, true, true]
-                units = "Year(s)"
         @our(".ev-advanced-weekly-repeat").toggle(visible[0])
         @our(".ev-advanced-monthly-repeat").toggle(visible[1])
         @our(".ev-advanced-yearly-repeat").toggle(visible[2])
-        @our(".ev-interval-units").text(units)
+        @our(".ev-interval-units-days").toggle(frequency==3)
+        @our(".ev-interval-units-weeks").toggle(frequency==2)
+        @our(".ev-interval-units-months").toggle(frequency==1)
+        @our(".ev-interval-units-years").toggle(frequency==0)
         return
 
 @initRecurrenceWidget = (id) ->
@@ -156,16 +155,16 @@ class RecurrenceWidget
     widget.enable()
     return
 
-@initExceptionDateChooser = (id, validDates, dowStart=0) ->
+@initExceptionDateChooser = (id, validDates, opts) ->
     dtpOpts =
         onGenerate: (ct) ->
             past = new Date()
-            past.setDate(past.getDate()-90)
+            past.setDate(past.getDate()-200)
             past.setDate(1)
             future = new Date()
-            future.setDate(future.getDate()+217)
+            future.setDate(future.getDate()+600)
             future.setDate(1)
-            if validDates != -1 and past < ct < future
+            if validDates != null and past < ct < future
                 #console.log(ct)
                 $(this).find('td.xdsoft_date').addClass('xdsoft_disabled')
                 for yyyymmdd in validDates
@@ -178,13 +177,6 @@ class RecurrenceWidget
         timepicker:        false
         scrollInput:       false
         format:            'Y-m-d'
-        dayOfWeekStart:    dowStart
-
-    # TODO: remove dateTimePickerTranslations code after PR4675 is released
-    # (it is benign but useless since Wagtail 2.1)
-    # https://github.com/wagtail/wagtail/pull/4675
-    if window.dateTimePickerTranslations
-        dtpOpts['i18n'] = lang: window.dateTimePickerTranslations
-        dtpOpts['lang'] = 'lang'
-
+        dayOfWeekStart:    0
+    $.extend(dtpOpts, opts)
     $('#' + id).datetimepicker(dtpOpts)

@@ -167,30 +167,29 @@
     };
 
     RecurrenceWidget.prototype._freqChanged = function(freq) {
-      var units, visible;
+      var frequency, visible;
       visible = [false, false, false];
-      units = "";
-      switch (parseInt(freq, 10)) {
+      frequency = parseInt(freq, 10);
+      switch (frequency) {
         case 3:
           visible = [false, false, false];
-          units = "Day(s)";
           break;
         case 2:
           visible = [true, false, false];
-          units = "Week(s)";
           break;
         case 1:
           visible = [false, true, false];
-          units = "Month(s)";
           break;
         case 0:
           visible = [false, true, true];
-          units = "Year(s)";
       }
       this.our(".ev-advanced-weekly-repeat").toggle(visible[0]);
       this.our(".ev-advanced-monthly-repeat").toggle(visible[1]);
       this.our(".ev-advanced-yearly-repeat").toggle(visible[2]);
-      this.our(".ev-interval-units").text(units);
+      this.our(".ev-interval-units-days").toggle(frequency === 3);
+      this.our(".ev-interval-units-weeks").toggle(frequency === 2);
+      this.our(".ev-interval-units-months").toggle(frequency === 1);
+      this.our(".ev-interval-units-years").toggle(frequency === 0);
     };
 
     return RecurrenceWidget;
@@ -203,21 +202,18 @@
     widget.enable();
   };
 
-  this.initExceptionDateChooser = function(id, validDates, dowStart) {
+  this.initExceptionDateChooser = function(id, validDates, opts) {
     var dtpOpts;
-    if (dowStart == null) {
-      dowStart = 0;
-    }
     dtpOpts = {
       onGenerate: function(ct) {
         var dd, future, i, len, mm, past, results, yyyy, yyyymmdd;
         past = new Date();
-        past.setDate(past.getDate() - 90);
+        past.setDate(past.getDate() - 200);
         past.setDate(1);
         future = new Date();
-        future.setDate(future.getDate() + 217);
+        future.setDate(future.getDate() + 600);
         future.setDate(1);
-        if (validDates !== -1 && (past < ct && ct < future)) {
+        if (validDates !== null && (past < ct && ct < future)) {
           $(this).find('td.xdsoft_date').addClass('xdsoft_disabled');
           results = [];
           for (i = 0, len = validDates.length; i < len; i++) {
@@ -234,14 +230,9 @@
       timepicker: false,
       scrollInput: false,
       format: 'Y-m-d',
-      dayOfWeekStart: dowStart
+      dayOfWeekStart: 0
     };
-    if (window.dateTimePickerTranslations) {
-      dtpOpts['i18n'] = {
-        lang: window.dateTimePickerTranslations
-      };
-      dtpOpts['lang'] = 'lang';
-    }
+    $.extend(dtpOpts, opts);
     return $('#' + id).datetimepicker(dtpOpts);
   };
 
